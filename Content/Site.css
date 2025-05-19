@@ -1,0 +1,389 @@
+﻿/* Move down content because we have a fixed navbar that is 50px tall */
+body {
+    /*padding-top: 50px;
+    padding-bottom: 20px;
+    padding-left: 20px;
+    height:880px;*/
+    height: 100%;
+}
+
+/* Wrapping element */
+/* Set some basic padding to keep content from hitting the edges */
+.body-content {
+    /*padding-left: 24px;
+    padding-right: 24px;*/
+    background-color: #F7F7F7;
+    height: 100%;
+}
+
+/* Set widths on the form inputs since otherwise they're 100% wide */
+input,
+select {
+    max-width: 280px;
+}
+
+
+/* Responsive: Portrait tablets and up */
+@media screen and (min-width: 1920px) {
+    .jumbotron {
+        /*margin-top: 20px;*/
+    }
+
+    .body-content {
+        padding: 0;
+    }
+}
+
+.navbar-inverse .navbar-toggle:hover,
+.navbar-inverse .navbar-toggle:focus {
+    background-color: #01A1B1;
+    border-color: #01A1B1;
+}
+.content {
+    height: 150px;
+    padding-top: 75px;
+    text-align: center;
+    background-color: #01A1B1;
+    font-size: 48px;
+}
+
+.alignleft{
+    text-align:left;
+}
+.alignright {
+    text-align: right;
+}
+.aligncenter {
+    text-align: center;
+}
+
+.headerlabel {
+    padding-top: 1px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 1px;
+    color: white;
+    background-color: #0f61fd;
+    font-size: large;
+    text-decoration: underline;
+    font-style: italic;
+    font-weight: bold;
+}
+/* WIZARD */
+/*#wizHeader li .prevStep {
+    font-weight: normal;
+    color: #0F61FD;
+    border-top-color: #0F61FD;
+    border-top-width: 2px;
+    border-top-style: solid;
+}
+
+    #wizHeader li .prevStep:after {
+       
+    }
+
+#wizHeader li .currentStep {
+    color: #0F61FD;
+    border-top-color: #0F61FD;
+    border-top-width: 2px;
+    border-top-style:solid;
+    font-weight:bold;
+    
+}
+
+    #wizHeader li .currentStep:after {
+        
+    }
+
+#wizHeader li .nextStep {
+    color: #6E6E6E;
+    border-top-color: #6E6E6E;
+    border-top-width: 2px;
+    border-top-style: solid;
+}
+
+    #wizHeader li .nextStep:after {
+       
+    }
+
+#wizHeader {
+    list-style: none;
+    overflow: hidden;
+    font: 16px var(--unnamed-font-family-objektiv-mk2);
+    
+    margin: 0px;
+    padding: 0px;
+}
+
+    #wizHeader li {
+        float: left;
+        padding: 1px;
+    }
+
+        #wizHeader li a {
+            color: white;
+            text-decoration: none;*/
+            /*padding: 10px 0 10px 20px;*/
+            /*background: #ffd966;*/ /* fallback color */
+            /*background: hsla(34,85%,35%,1);*/
+            /*position: relative;
+            display: block;*/
+            /*float: left;*/
+            /*margin-left: 5px;*/
+        /*}
+
+            #wizHeader li a:after {
+                content: " ";
+                display: block;*/
+           /*     width: 0;
+                height: 0;*/
+                /*border-top: 18px solid transparent;*/ /* Go big on the size, and let overflow hide */
+                /*border-bottom: 15px solid transparent;*/
+                /*border-left: 25px solid #ffd966;*/ /*hsla(34,85%,35%,1);*/
+                /*position: absolute;*/
+                /*top: 96%;
+                margin-top: -30px;
+                left: 100%;*/
+                /*z-index: 2;
+            }
+
+            #wizHeader li a:before {
+                content: " ";
+                display: block;*/
+               /* width: 0;
+                height: 0;*/
+            /*    border-top: 30px solid transparent;
+                border-bottom: 30px solid transparent;
+                border-left: 25px solid white;*/
+                /*position: absolute;*/
+                /*top: 50%;
+                margin-top: -50px;
+                margin-left: 20px;
+                left: 100%;*/
+                /*z-index: 1;
+            }
+
+        #wizHeader li:first-child a {
+            padding-left: 10px;
+        }
+
+        #wizHeader li:last-child {
+            padding-right: 50px;
+        }
+
+        #wizHeader li a:hover {
+            background: #0F61FD;
+        }
+
+            #wizHeader li a:hover:after {
+                border-left-color: #0F61FD !important;
+            }*/
+.TabArea {
+    background-color: White;
+    font-size: x-small;
+    border-left: 1px solid black;
+    border-bottom: 1px solid black;
+    border-right: 1px solid black;
+    border-top: 1px solid black;
+    position: absolute;
+    top: 42px;
+    height: 400px;
+    z-index: -25;
+}
+.success {
+    background-color: #87C540; /* Green */
+}
+.info {
+    background-color: #2196F3;/* Blue */
+}
+.warning {
+    background-color: #01A1B1; /* Orange */
+}
+.danger {
+    background-color: #f44336;/* Red */
+}
+.other {
+    background-color: #e7e7e7;/* Gray */
+    color: black;
+}
+/*.rbspace input[type="radio"] {
+    margin-left:20px;
+    margin-right: 50px;*/ /* Or any other value */
+/*}*/
+.rbspace input[type="radio"] {
+    margin-left: 20px;
+    margin-right: 20px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+    
+.rbspace  input[type="checkbox"]
+{
+    margin-left: 20px;
+    margin-right: 20px; 
+    padding-left: 20px;
+    padding-right:20px;
+    
+}
+
+.tblwidth{
+    width:100%;
+    padding:10px;
+    
+}
+.tblcell{
+    width:25%;
+    padding:10px;
+}
+
+.hidden
+{
+    display:none;
+    border:none;
+    border-left:none;
+}
+
+.shown
+{
+    display:block;
+
+}
+.shownspace {
+    display: block;
+    margin-right: 5px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+
+.sitebtns {
+    color: white;
+    background-color: #2DBDB4;
+    height: 40px;
+    width: 240px;
+    padding: 10px;
+    border: none 0px transparent;
+    font-size: 18px;
+    font-weight: lighter;
+    -moz-border-radius: 2px 2px 2px 2px;
+    border-radius: 2px 2px 2px 2px;
+}
+
+.sitebtnssmall {
+    color: white;
+    background-color: #2DBDB4;
+    height: 35px;
+    width: 160px;
+    padding: 10px;
+    border: none 0px transparent;
+    font-size: 14px;
+    font-weight: lighter;
+    -moz-border-radius: 2px 2px 2px 2px;
+    border-radius: 2px 2px 2px 2px;
+}
+
+.sitebtnssmallOther {
+    color: #fff;
+    background-color: black;
+    height: 35px;
+    width: 160px;
+    padding: 10px;
+    border: none 0px transparent;
+    font-size: 14px;
+    font-weight: lighter;
+    -moz-border-radius: 2px 2px 2px 2px;
+    border-radius: 2px 2px 2px 2px;
+}
+
+.normalbuttons {
+    color: #0F61FD;
+    background-color: white;
+    height: 48px;
+    width: 142px;
+    padding: 2px;
+    border-color: #0F61FD;
+    border-width: 2px;
+    font: var(--unnamed-font-style-normal) normal var(--unnamed-font-weight-medium) var(--unnamed-font-size-16)/23px var(--unnamed-font-family-objektiv-mk2);
+    letter-spacing: var(--unnamed-character-spacing-0);
+    color: var(--primary-enabled);
+    text-align: center;
+    font: normal normal medium 16px/23px Objektiv Mk2;
+    letter-spacing: 0px;
+    color: #0F61FD;
+    opacity: 1;
+}
+
+.standard-bold {
+    font-family: var(--unnamed-font-family-objektiv-mk2);
+    font-style: normal;
+    font-weight: bold;
+    font-size: 16px;
+    line-height: 24px;
+    letter-spacing: 0px;
+    opacity:1;
+}
+.standardtableborder {
+    padding-left:10px;
+    padding-right:10px;
+    padding-top:10px;
+    padding-bottom:10px;
+    border-color: #F7F7F7;
+    border-width:4px;
+    border-style:solid;
+}
+
+.warninglabel {
+    display: block;
+    background: #FFF7E3;
+    border: 1px solid #EFE2C5;
+    border-left: 3px solid #FDD13A;
+    opacity: 1;
+    text-align: left;
+    vertical-align: middle;
+    padding: 16px;
+}
+.warninglabelM {
+    display: block;
+    background: #FFF7E3;
+    border: 1px solid #EFE2C5;
+    border-left: 3px solid #FDD13A;
+    opacity: 1;
+    text-align: center;
+    vertical-align: middle;
+    padding: 16px;
+}
+.definitionlabel {
+    display: block;
+    background: #35BABA;
+    border: 1px solid #46AABA;
+    border-left: 3px solid #62BAB4;
+    opacity: 1;
+    text-align: left;
+    vertical-align: middle;
+    padding: 16px;
+}
+.errorlabel {
+    display: block;
+    background: #FFF1F3;
+    border: 1px solid #E2C4C4;
+    border-left: 3px solid #DA1E28;
+    opacity: 1;
+    text-align: left;
+    vertical-align: middle;
+    padding: 16px;
+}
+.tarea {
+    height: 200px !important;
+    line-height: 24px !important;
+    margin-bottom: 32px;
+}
+.datelabel {
+    display: block;
+    width: 750px;
+    border: 1px solid #0f61fd;
+    border-left: 3px solid #0f61fd;
+    opacity: 1;
+    text-align: left;
+    vertical-align: middle;
+    padding: 15px;
+}

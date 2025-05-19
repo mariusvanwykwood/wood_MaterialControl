@@ -1,0 +1,1179 @@
+﻿
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Globalization;
+using System.Reflection;
+using iText.Layout.Properties;
+using iText.Layout.Borders;
+using Border = iText.Layout.Borders.Border;
+using Oracle.ManagedDataAccess.Client;
+using System.Linq;
+using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
+
+
+
+
+namespace Wood_MaterialControl
+{
+    public class DataClass
+    {
+        public static string tmpcon = @"Data Source=EDC09-SQL01\DAILYDIARY;Initial Catalog=SQL_Engdata_DEV;User ID=SQL_EngData;Password=SQL_EngData;";
+        public static string conUsers = @"Data Source=EDC09-SQL01\DAILYDIARY;Initial Catalog=WOOD_EMPLocations;User ID=LoactionLogger;Password=LocationLogger@2023;";
+
+        #region SQL EngData
+        #region Classes
+        public class UserLookupData
+        {
+            public int UserID { get; set; }
+
+            public string UserName { get; set; }
+        }
+        public class DDLList
+        {
+            public string DDLList_ID { get; set; }
+            public string DDLListName { get; set; }
+            public string DDLID { get; set; } = "";
+        }
+        public class ParsedDecimal
+        {
+            public decimal Value { get; set; }
+            public bool HasError { get; set; }
+        }
+        #endregion
+        #region Functions
+        public static ParsedDecimal DecParse(string value)
+        {
+            ParsedDecimal newdec = new ParsedDecimal();
+            decimal result = -9999999m;
+            var valuetouse = value.Replace(" ", "").Trim();
+            CultureInfo ci = CultureInfo.InvariantCulture.Clone() as CultureInfo;
+            ci.NumberFormat.NumberDecimalSeparator = ",";
+            try
+            {
+                result = decimal.Parse(valuetouse, NumberStyles.Float, ci);
+                newdec.Value = result;
+            }
+            catch
+            {
+                try
+                {
+                    ci.NumberFormat.NumberDecimalSeparator = ".";
+                    result = decimal.Parse(valuetouse, NumberStyles.Float, ci);
+                    newdec.Value = result;
+                }
+                catch
+                {
+                    newdec.HasError = true;
+                    //MessageBox.Show("Decimal Convert Error for Value: " + valuetouse.ToString() + " " + ex.Message);
+                }
+            }
+            if (result == -9999999)
+            {
+                try
+                {
+                    ci.NumberFormat.NumberDecimalSeparator = ".";
+                    result = decimal.Parse(valuetouse, NumberStyles.Float, ci);
+                    newdec.Value = result;
+                }
+                catch
+                {
+                    newdec.HasError = true;
+                    newdec.Value = 0m;
+                    //MessageBox.Show("Decimal Convert Error for Value: " + valuetouse.ToString() + " " + ex.Message);
+                }
+            }
+            return newdec;
+        }
+        public static string ReplaceFirst(string text, string search, string replace)
+        {
+            int pos = text.IndexOf(search);
+            if (pos < 0)
+            {
+                return text;
+            }
+            return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
+        }
+        public static System.Data.DataTable ToDataTable<T>(List<T> items)
+        {
+            System.Data.DataTable dataTable = new System.Data.DataTable(typeof(T).Name);
+            //Get all the properties
+            PropertyInfo[] Props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (PropertyInfo prop in Props)
+            {
+                //Setting column names as Property names
+                dataTable.Columns.Add(prop.Name);
+            }
+            foreach (T item in items)
+            {
+                var values = new object[Props.Length];
+                for (int i = 0; i < Props.Length; i++)
+                {
+                    //inserting property values to datatable rows
+                    values[i] = Props[i].GetValue(item, null);
+                }
+                dataTable.Rows.Add(values);
+            }
+            //put a breakpoint here and check datatable
+            return dataTable;
+        }
+        #endregion
+        #region DataCalls
+        internal static List<DataClass.UserLookupData> GetAllUsersLookup()
+        {
+            List<DataClass.UserLookupData> allUsersLookup = new List<DataClass.UserLookupData>();
+            SqlConnection connection = (SqlConnection)null;
+            try
+            {
+                string cmdText = "SELECT DISTINCT [EID], [Surname] +' , '+[PreferredName]+'  ( '+[JobTitle] + ' - ' + [EmployeeEmail] +' )' FROM [WOOD_EMPLocations].[dbo].[Employees] where [IsDeleted]=0 and EID in(Select distinct [fld_EID] from [SQL_EngData].[dbo].[tbl_UserAccess]) order by 2";
+                using (connection = new SqlConnection(DataClass.conUsers))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(cmdText, connection);
+                    sqlCommand.CommandType = CommandType.Text;
+                    connection.Open();
+                    SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
+                    while (sqlDataReader.Read())
+                    {
+                        DataClass.UserLookupData userLookupData = new DataClass.UserLookupData();
+                        userLookupData.UserID = int.Parse(sqlDataReader[0].ToString());
+                        userLookupData.UserName = sqlDataReader[1].ToString();
+                        if (!allUsersLookup.Contains(userLookupData))
+                            allUsersLookup.Add(userLookupData);
+                    }
+                    sqlDataReader.Close();
+                    connection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                var x = ex.Message;
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                    connection.Close();
+                GC.Collect();
+            }
+            return allUsersLookup;
+        }
+
+        internal static bool UserHasAccess(int uid)
+        {
+            bool hasAccess = false;
+            SqlConnection connection = (SqlConnection)null;
+            try
+            {
+                string cmdText = "SELECT TOP (1) [fld_HasAccess]  FROM [dbo].[tbl_UserAccess] where fld_EID = " + uid.ToString();
+                using (connection = new SqlConnection(DataClass.tmpcon))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(cmdText, connection);
+                    sqlCommand.CommandType = CommandType.Text;
+                    connection.Open();
+                    SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
+                    while (sqlDataReader.Read())
+                    {
+                        hasAccess = bool.Parse(sqlDataReader[0].ToString());
+                    }
+                    sqlDataReader.Close();
+                    connection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                var x = ex.Message;
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                    connection.Close();
+                GC.Collect();
+            }
+            return hasAccess;
+        }
+             #endregion
+        #endregion
+
+        #region Material
+        public static string conMat = @"Data Source=EDC09-SQL01\DAILYDIARY;Initial Catalog=WOOD_MaterialControl;User ID=MaterialControl;Password=MaterialControl;";
+        #region Classes
+        public class SpecData
+        {
+            public string Project { get; set; }
+            public string Lineclass { get; set; }
+            public string Shortcode { get; set; }
+            public string Ident { get; set; }
+            public string Commodity_code { get; set; }
+            public string Short_desc { get; set; }
+            public string Description { get; set; }
+            public string Size_sch1 { get; set; }
+            public string Size_sch2 { get; set; }
+            public string Size_sch3 { get; set; }
+            public string Size_sch4 { get; set; }
+            public string Size_sch5 { get; set; }
+            public string Spec_revision { get; set; }
+            public string Published { get; set; }
+            public string Published_date { get; set; }
+            public string Option_code { get; set; }
+            public string Option_code_desc { get; set; }
+        }
+
+
+        [Serializable]
+        public class GridData
+        {
+            public int MaterialID { get; set; }
+            public int ProjectID { get; set; }
+            public string Discipline { get; set; }
+            public string Area { get; set; }
+            public string Unit { get; set; }
+            public string Phase { get; set; }
+            public string Const_Area { get; set; }
+            public string ISO { get; set; }
+            public string Component_Type { get; set; }
+            public string Spec { get; set; }
+            public string Shortcode { get; set; }
+            public string Ident_no { get; set; }
+            public string IsoShortDescription { get; set; }
+            public string Size_sch1 { get; set; }
+            public string Size_sch2 { get; set; }
+            public string Size_sch3 { get; set; }
+            public string Size_sch4 { get; set; }
+            public string Size_sch5 { get; set; }
+            public string qty { get; set; }
+            public string qty_unit { get; set; }
+            public string Fabrication_Type { get; set; }
+            public string Source { get; set; } = "P";
+            public string IsoRevisionDate { get; set; } = "";
+            public string IsoRevision { get; set; } = "";
+            public string IsLocked { get; set; } = "";
+            
+        }
+        public class SPMATData
+        {
+            public string Discipline { get; set; }
+            public string Area { get; set; }
+            public string Unit { get; set; }
+            public string Phase { get; set; }
+            public string Const_Area { get; set; }
+            public string ISO { get; set; }
+            public string Ident_no { get; set; }
+            public decimal qty { get; set; }
+            public string qty_unit { get; set; }
+            public string Fabrication_Type { get; set; }
+            public string Spec { get; set; }
+            public string Pos { get; set; }
+            public string IsoRevisionDate { get; set; }
+            public string IsoRevision { get; set; }
+            public string IsLocked { get; set; }
+        }
+        public class SPMATDBData
+        {
+            public int MaterialID { get; set; }
+      public int ProjectID { get; set; }
+            public string Discipline { get; set; }
+            public string Area { get; set; }
+            public string Unit { get; set; }
+            public string Phase { get; set; }
+            public string Const_Area { get; set; }
+            public string ISO { get; set; }
+            public string Ident_no { get; set; }
+            public string qty { get; set; }
+            public string qty_unit { get; set; }
+            public string Fabrication_Type { get; set; }
+            public string Spec { get; set; }
+            public string IsoRevisionDate { get; set; }
+            public string IsoRevision { get; set; }
+            public string Lock { get; set; }
+            public string Code { get; set; }
+        }
+        #endregion
+        #region DataCalls
+        public static List<SpecData> LoadSpectDataFromDB(string mainProjectID)
+        {
+            List<SpecData> dbspec = new List<SpecData>();
+            try
+            {
+                string constr = "Data Source = (DESCRIPTION = (ADDRESS = (PROTOCOL = tcp)(HOST =jbg1-ora5)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = SDBFT))); User Id = m_sys; Password = manager1;";
+
+                string cmdtext = @"
+SELECT 
+    M_SYS.M_SPEC_ITEMS.PROJ_ID AS Project,
+    M_SYS.M_SPEC_HEADERS.SPEC_CODE AS LineClass,
+    M_SYS.M_SPEC_ITEMS.SHORT_CODE AS ShortCode,
+    M_SYS.M_IDENTS.IDENT_CODE AS Ident,
+    M_SYS.M_COMMODITY_CODES.COMMODITY_CODE,
+    M_SYS.M_COMMODITY_CODE_NLS.SHORT_DESC,
+    M_SYS.M_COMMODITY_CODE_NLS.DESCRIPTION,
+    M_SYS.M_IDENTS.INPUT_1 AS Size_sch1,
+    M_SYS.M_IDENTS.INPUT_2 AS Size_sch2,
+    M_SYS.M_IDENTS.INPUT_3 AS Size_sch3,
+    M_SYS.M_IDENTS.INPUT_4 AS Size_sch4,
+    M_SYS.M_IDENTS.INPUT_5 AS Size_sch5,
+    M_SYS.M_SPEC_HEADERS.XREV AS Spec_Revision,
+    M_SYS.M_SPEC_HEADERS.PUBLISHED,
+    M_SYS.M_SPEC_HEADERS.DATE_PUBLISHED AS Published_Date,
+    M_SYS.M_SPEC_ITEMS.OPTION_CODE,
+    M_SYS.M_SHORT_CODE_OPTION_CODES.SCOC_COMMENT AS Option_Code_Desc
+FROM M_SYS.M_SPEC_ITEMS
+INNER JOIN M_SYS.M_RELEASED_SPEC_IDENTS
+    ON M_SYS.M_SPEC_ITEMS.SPEC_ITEM_ID = M_SYS.M_RELEASED_SPEC_IDENTS.SPEC_ITEM_ID
+    AND M_SYS.M_SPEC_ITEMS.PROJ_ID = M_SYS.M_RELEASED_SPEC_IDENTS.PROJ_ID
+INNER JOIN M_SYS.M_IDENTS
+    ON M_SYS.M_RELEASED_SPEC_IDENTS.IDENT = M_SYS.M_IDENTS.IDENT
+INNER JOIN M_SYS.M_SPEC_HEADERS
+    ON M_SYS.M_RELEASED_SPEC_IDENTS.SPEC_HEADER_ID = M_SYS.M_SPEC_HEADERS.SPEC_HEADER_ID
+INNER JOIN M_SYS.M_COMMODITY_CODES
+    ON M_SYS.M_IDENTS.COMMODITY_ID = M_SYS.M_COMMODITY_CODES.COMMODITY_ID
+INNER JOIN M_SYS.M_PROJECTS
+    ON M_SYS.M_COMMODITY_CODES.PROJ_ID = M_SYS.M_PROJECTS.PROJ_ID
+INNER JOIN M_SYS.M_COMMODITY_CODE_NLS
+    ON M_SYS.M_PROJECTS.PROJ_ID = M_SYS.M_COMMODITY_CODE_NLS.PROJ_ID
+    AND M_SYS.M_COMMODITY_CODES.COMMODITY_ID = M_SYS.M_COMMODITY_CODE_NLS.COMMODITY_ID
+INNER JOIN M_SYS.M_COMMODITY_GROUPS
+    ON M_SYS.M_COMMODITY_CODES.GROUP_ID = M_SYS.M_COMMODITY_GROUPS.GROUP_ID
+INNER JOIN M_SYS.M_PARTS
+    ON M_SYS.M_PARTS.PART_ID = M_SYS.M_COMMODITY_CODES.PART_ID
+INNER JOIN M_SYS.M_SHORT_CODE_OPTION_CODES
+    ON M_SYS.M_SPEC_ITEMS.OPTION_CODE = M_SYS.M_SHORT_CODE_OPTION_CODES.OPTION_CODE
+    AND M_SYS.M_SPEC_ITEMS.SHORT_CODE = M_SYS.M_SHORT_CODE_OPTION_CODES.SHORT_CODE
+WHERE M_SYS.M_COMMODITY_CODE_NLS.NLS_ID = 1
+  AND M_SYS.M_SHORT_CODE_OPTION_CODES.SCOC_USAGE = 'SP3D'
+  AND M_SYS.M_RELEASED_SPEC_IDENTS.PROJ_ID = :mainProjectID
+  AND (M_SYS.M_SPEC_HEADERS.SPEC_CODE, M_SYS.M_SPEC_HEADERS.XREV) IN (
+      SELECT SPEC_CODE, MAX(XREV)
+      FROM M_SYS.M_SPEC_HEADERS
+      WHERE PROJ_ID = :mainProjectID
+      GROUP BY SPEC_CODE
+  )
+ORDER BY LineClass, ShortCode";
+
+
+                using (OracleConnection conn = new OracleConnection(constr))
+                using (OracleCommand cmd = new OracleCommand(cmdtext, conn))
+                {
+                    cmd.CommandType = CommandType.Text;
+                    cmd.Parameters.Add(new OracleParameter("mainProjectID", mainProjectID));
+                    cmd.InitialLOBFetchSize = -1;
+                    conn.Open();
+                    // reader is IDisposable and should be closed
+                    using (OracleDataReader dr = cmd.ExecuteReader())
+                    {
+                        dr.FetchSize = dr.RowSize * 1000;
+                        while (dr.Read())
+                        {
+                            SpecData item = new SpecData();
+                            item.Project = dr.GetValue(0).ToString();
+                            item.Lineclass = dr.GetValue(1).ToString();
+                            item.Shortcode = dr.GetValue(2).ToString();
+                            item.Ident = dr.GetValue(3).ToString();
+                            item.Commodity_code = dr.GetValue(4).ToString();
+                            item.Short_desc = dr.GetValue(5).ToString();
+                            item.Description = dr.GetValue(6).ToString();
+                            item.Size_sch1 = dr.GetValue(7).ToString();
+                            item.Size_sch2 = dr.GetValue(8).ToString();
+                            item.Size_sch3 = dr.GetValue(9).ToString();
+                            item.Size_sch4 = dr.GetValue(10).ToString();
+                            item.Size_sch5 = dr.GetValue(11).ToString();
+                            item.Spec_revision = dr.GetValue(12).ToString();
+                            item.Published = dr.GetValue(13).ToString();
+                            item.Published_date = dr.GetValue(14).ToString();
+                            item.Option_code = dr.GetValue(15).ToString();
+                            item.Option_code_desc = dr.GetValue(16).ToString();
+                            dbspec.Add(item);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                var err = ex.Message;
+            }
+            return dbspec;
+        }
+        public static List<DDLList> LoadProjectsSpecs(string Company)
+        {
+            List<DDLList> projlst = new List<DDLList>();
+            try
+            {
+                // Please replace the connection string attribute settings
+                string constr = "Data Source = (DESCRIPTION = (ADDRESS = (PROTOCOL = tcp)(HOST =jbg1-ora5)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = SDBFT))); User Id = m_sys; Password = manager1;";
+                //OracleConnection con = new OracleConnection(constr);
+                var cmdtext = "Select Distinct PROJ_ID, TO_CHAR(PROJ_ID)|| ' - ' || DESCRIPTION from M_PROJECTS where PROJ_ID = '" + Company+"'";
+                using (OracleConnection conn = new OracleConnection(constr))
+                using (OracleCommand cmd = new OracleCommand(cmdtext, conn))
+                {
+                    conn.Open();
+
+                    // reader is IDisposable and should be closed
+                    using (OracleDataReader dr = cmd.ExecuteReader())
+                    {
+                        
+                        while (dr.Read())
+                        {
+                            DDLList proj = new DDLList();
+                            proj.DDLList_ID = dr[0].ToString();
+                            proj.DDLListName = dr[1].ToString();
+                            if (!projlst.Contains(proj))
+                            {
+                                projlst.Add(proj);
+                            }
+                        }
+                    }
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+               var err=ex.Message;
+            }
+            return projlst;
+        }
+
+        public static List<DDLList> LoadSubProjects(string Spec)
+        {
+            List<DDLList> sublst = new List<DDLList>();
+            try
+            {
+                // Please replace the connection string attribute settings
+                string constr = "Data Source = (DESCRIPTION = (ADDRESS = (PROTOCOL = tcp)(HOST =jbg1-ora5)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = SDBFT))); User Id = m_sys; Password = manager1;";
+                //OracleConnection con = new OracleConnection(constr);
+                var cmdtext = "Select Distinct PROJECT_ID, PROJECT_ID||' - '||PROJECT_SHORT_DESC from W_SUB_PROJECT where M_PROJECT_ID ='" + Spec.Trim() + "'";
+                using (OracleConnection conn = new OracleConnection(constr))
+                using (OracleCommand cmd = new OracleCommand(cmdtext, conn))
+                {
+                    conn.Open();
+
+                    // reader is IDisposable and should be closed
+                    using (OracleDataReader dr = cmd.ExecuteReader())
+                    {
+
+                        while (dr.Read())
+                        {
+                            DDLList items = new DDLList();
+                            items.DDLList_ID = dr.GetValue(0).ToString();
+                            items.DDLListName = dr.GetValue(1).ToString();
+                            if (!sublst.Contains(items))
+                            {
+                                sublst.Add(items);
+                            }
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                var err = ex.Message;
+            }
+            return sublst;
+        }
+        public static List<DDLList> LoadCients()
+        {
+            List<DDLList> clientlst = new List<DDLList>();
+            try
+            {
+
+                // Please replace the connection string attribute settings
+                string constr = "Data Source = (DESCRIPTION = (ADDRESS = (PROTOCOL = tcp)(HOST =jbg1-ora5)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = SDBFT))); User Id = m_sys; Password = manager1;";
+                //OracleConnection con = new OracleConnection(constr);
+                using (OracleConnection conn = new OracleConnection(constr))
+                using (OracleCommand cmd = new OracleCommand("Select distinct PGR_ID,PGR_Code from M_PROJECT_GROUPS order by PGR_Code", conn))
+                {
+                    conn.Open();
+
+                    // reader is IDisposable and should be closed
+                    using (OracleDataReader dr = cmd.ExecuteReader())
+                    {
+
+
+                        while (dr.Read())
+                        {
+                            DDLList item = new DDLList();
+                            item.DDLList_ID = dr.GetValue(0).ToString();
+                            item.DDLListName = dr.GetValue(1).ToString();
+                            if (!clientlst.Contains(item))
+                            {
+                                clientlst.Add(item);
+                            }
+                        }
+                    }
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                var err = ex.Message;
+            }
+            return clientlst;
+        }
+        internal static List<DDLList> GetAllRefClients()
+        {
+            List<DDLList> u = new List<DDLList>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT distinct [fld_RefDataProject],[fld_ClientTitle],[fld_ID] FROM [dbo].[tbl_Clients] where [fld_RefDataProject] is not null order by fld_ClientTitle";
+                using (cn = new System.Data.SqlClient.SqlConnection(tmpcon))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        DDLList Client = new DDLList();
+                        Client.DDLList_ID = dr[0].ToString();
+                        Client.DDLListName = dr[1].ToString();
+                        Client.DDLID = dr[2].ToString();
+                        if (!u.Contains(Client))
+                        {
+                            u.Add(Client);
+                        }
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return u;
+        }
+        internal static List<DDLList> GetRefProjects(string ClientID)
+        {
+            List<DDLList> projlst = new List<DDLList>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT Distinct [fld_ID],[fld_ProjectNo]+ ' - ' +[fld_ProjectDescription],[fld_ID] FROM [dbo].[tbl_ProjectInformation] where [fld_ClientID]= "+ClientID.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(tmpcon))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        DDLList proj = new DDLList();
+                        proj.DDLList_ID = dr[0].ToString();
+                        proj.DDLListName = dr[1].ToString();
+                        proj.DDLID= dr[2].ToString();
+                        if (!projlst.Contains(proj))
+                        {
+                            projlst.Add(proj);
+                        }
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return projlst;
+        }
+
+        internal static List<DDLList> GetProjectISO(string projid,bool All= true)
+        {
+            List<DDLList> isolst = new List<DDLList>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "";
+                if (All)
+                {
+                    query = "SELECT Distinct [ISO],[ISO] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " order by 1";
+                }
+                else
+                {
+                    query = "SELECT Distinct [ISO],[ISO] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " and Checked=0 order by 1";
+                }
+                    using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                    {
+                        System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                        Command.CommandType = System.Data.CommandType.Text;
+                        cn.Open();
+                        System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                        while (dr.Read())
+                        {
+                            DDLList iso = new DDLList();
+                            iso.DDLList_ID = dr[0].ToString();
+                            iso.DDLListName = dr[1].ToString();
+
+                            if (!isolst.Contains(iso))
+                            {
+                                isolst.Add(iso);
+                            }
+                        }
+                        dr.Close();
+                        cn.Close();
+                    }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return isolst;
+        }
+
+        internal static List<SPMATDBData> GetIsoSheetMTOData(string isosheet,string ProjectID,bool All=true)
+        {
+            List<SPMATDBData> isodata = new List<SPMATDBData>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "";
+                if (All)
+                {
+                    query = "SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code]  FROM [dbo].[SPMAT_REQData] where Ltrim(Rtrim(ISO))='" + isosheet.Trim() + "' and ProjectID=" + ProjectID.Trim();
+                }
+                else
+                {
+                    query = "SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code]  FROM [dbo].[SPMAT_REQData] where Ltrim(Rtrim(ISO))='" + isosheet.Trim() + "' and checked=0 and ProjectID=" + ProjectID.Trim();
+                }
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        SPMATDBData spdata = new SPMATDBData();
+                        spdata.MaterialID = Convert.ToInt32(dr[0]);
+                        spdata.ProjectID = Convert.ToInt32(dr[1]);
+                        spdata.Discipline = dr[2].ToString();
+                        spdata.Area = dr[3].ToString();
+                        spdata.Unit = dr[4].ToString();
+                        spdata.Phase = dr[5].ToString();
+                        spdata.Const_Area = dr[6].ToString();
+                        spdata.ISO = dr[7].ToString();
+                        spdata.Ident_no = dr[8].ToString();
+                        spdata.qty = dr[9].ToString().Trim();
+                        spdata.qty_unit = dr[10].ToString();
+                        spdata.Fabrication_Type = dr[11].ToString();
+                        spdata.Spec = dr[12].ToString();
+                        spdata.IsoRevisionDate = dr[13].ToString();
+                        spdata.IsoRevision = dr[14].ToString();
+                        spdata.Lock = dr[15].ToString();
+                        spdata.Code = dr[16].ToString();
+
+                        if (!isodata.Contains(spdata))
+                        {
+                            isodata.Add(spdata);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return isodata;
+        }
+
+        internal static void UpdateQtyInDatabase(SPMATDBData toUpdate)
+        {
+            System.Data.SqlClient.SqlConnection cn = null;
+            using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+            {
+                string query = @"
+            UPDATE [dbo].[SPMAT_REQData]
+            SET 
+                qty = @qty,
+                Unit = @Unit,
+                Phase = @Phase,
+                Const_Area = @ConstArea,
+                Spec = @Spec,
+                Ident_no = @IdentNo,
+                Fabrication_Type = @FabricationType,
+                IsoRevision = @IsoRevision,
+                IsoRevisionDate = @IsoRevisionDate,
+                IsLocked = @IsLocked,
+                Code = @Code
+            WHERE MaterialID = @MaterialID";
+
+                SqlCommand cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@qty", DecParse(toUpdate.qty).Value);
+                cmd.Parameters.AddWithValue("@Unit", toUpdate.Unit ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Phase", toUpdate.Phase ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@ConstArea", toUpdate.Const_Area ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Spec", toUpdate.Spec ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IdentNo", toUpdate.Ident_no ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@FabricationType", toUpdate.Fabrication_Type ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsoRevision", toUpdate.IsoRevision ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsoRevisionDate", toUpdate.IsoRevisionDate ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsLocked", toUpdate.Lock ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Code", toUpdate.Code ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@MaterialID", toUpdate.MaterialID);
+
+                cn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+        internal static void FinalizeMaterialUpdate(SPMATDBData item)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+
+                // 1. Update Checked field
+                var updateCmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
+                updateCmd.Parameters.AddWithValue("@MaterialID", item.MaterialID);
+                updateCmd.ExecuteNonQuery();
+
+                // 2. Insert into SPMAT_MTOData
+                var insertCmd = new SqlCommand(@"
+            INSERT INTO [dbo].[SPMAT_MTOData]
+            ([MaterialID], [ProjectID], [Discipline], [Area], [Unit], [Phase], [Const_Area], [ISO], [Ident_no], [qty], [qty_unit], 
+             [Fabrication_Type], [Spec], [IsoRevisionDate], [IsoRevision], [IsLocked], [Code])
+            VALUES
+            (@MaterialID, @ProjectID, @Discipline, @Area, @Unit, @Phase, @Const_Area, @ISO, @Ident_no, @qty, @qty_unit, 
+             @Fabrication_Type, @Spec, @IsoRevisionDate, @IsoRevision, @IsLocked, @Code)", cn);
+
+                insertCmd.Parameters.AddWithValue("@MaterialID", item.MaterialID);
+                insertCmd.Parameters.AddWithValue("@ProjectID", item.ProjectID);
+                insertCmd.Parameters.AddWithValue("@Discipline", item.Discipline ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Area", item.Area ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Unit", item.Unit ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Phase", item.Phase ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Const_Area", item.Const_Area ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@ISO", item.ISO ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Ident_no", item.Ident_no ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@qty", DecParse(item.qty).Value);
+                insertCmd.Parameters.AddWithValue("@qty_unit", item.qty_unit ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Fabrication_Type", item.Fabrication_Type ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Spec", item.Spec ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@IsoRevisionDate", item.IsoRevisionDate ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@IsoRevision", item.IsoRevision ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@IsLocked", item.Lock ?? (object)DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Code", item.Code ?? (object)DBNull.Value);
+                insertCmd.ExecuteNonQuery();
+            }
+        }
+
+
+
+        internal static List<string> GetUnitsByProject(string projid)
+        {
+            List<string> units = new List<string>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  distinct [Unit]  FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var un = dr[0].ToString();
+                        if (!units.Contains(un))
+                        {
+                            units.Add(un);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return units;
+        }
+
+        internal static List<string> GetPhasesByProject(string projid)
+        {
+            List<string> Phase = new List<string>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  distinct [Phase]  FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var ph = dr[0].ToString();
+                        if (!Phase.Contains(ph))
+                        {
+                            Phase.Add(ph);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return Phase;
+        }
+
+        internal static List<string> GetConstAreasByProject(string projid)
+        {
+            List<string> constarea = new List<string>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  distinct [Const_Area]  FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var ca = dr[0].ToString();
+                        if (!constarea.Contains(ca))
+                        {
+                            constarea.Add(ca);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return constarea;
+        }
+
+        public static Dictionary<string, List<string>> GetUnitPhaseMap(string projectId)
+        {
+            var result = new Dictionary<string, List<string>>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+            {
+                string query = @"
+            SELECT DISTINCT Unit, Phase
+            FROM [dbo].[SPMAT_REQData]
+            WHERE ProjectID = @ProjectID AND Unit IS NOT NULL AND Phase IS NOT NULL";
+
+                SqlCommand cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@ProjectID", projectId);
+
+                cn.Open();
+                SqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    string unit = reader["Unit"].ToString();
+                    string phase = reader["Phase"].ToString();
+
+                    if (!result.ContainsKey(unit))
+                        result[unit] = new List<string>();
+
+                    if (!result[unit].Contains(phase))
+                        result[unit].Add(phase);
+                }
+            }
+
+            return result;
+        }
+
+        internal static Dictionary<string, Dictionary<string, List<string>>> GetUnitPhaseConstAreaMap(string projid)
+        {
+            var result = new Dictionary<string, Dictionary<string, List<string>>>();
+            using (var cn = new System.Data.SqlClient.SqlConnection(conMat))
+            {
+                string query = @"
+            SELECT DISTINCT Unit, Phase, Const_Area
+            FROM [dbo].[SPMAT_REQData]
+            WHERE ProjectID = @ProjectID 
+              AND Unit IS NOT NULL 
+              AND Phase IS NOT NULL 
+              AND Const_Area IS NOT NULL";
+
+                SqlCommand cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@ProjectID", projid);
+
+                cn.Open();
+                SqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    string unit = reader["Unit"].ToString();
+                    string phase = reader["Phase"].ToString();
+                    string constArea = reader["Const_Area"].ToString();
+
+                    if (!result.ContainsKey(unit))
+                        result[unit] = new Dictionary<string, List<string>>();
+
+                    if (!result[unit].ContainsKey(phase))
+                        result[unit][phase] = new List<string>();
+
+                    if (!result[unit][phase].Contains(constArea))
+                        result[unit][phase].Add(constArea);
+                }
+            }
+
+            return result;
+
+        }
+
+        internal static List<string> GetSpecsByProject(string projid)
+        {
+            List<string> specs = new List<string>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  distinct [Spec]  FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var sp = dr[0].ToString();
+                        if (!specs.Contains(sp))
+                        {
+                            specs.Add(sp);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return specs;
+        }
+
+        public static bool AreObjectsDifferentExcept<T>(T obj1, T obj2, params string[] excludedFields)
+        {
+            if (obj1 == null || obj2 == null)
+                throw new ArgumentNullException("Objects cannot be null");
+
+            var type = typeof(T);
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                 .Where(p => !excludedFields.Contains(p.Name));
+
+            foreach (var property in properties)
+            {
+                var value1 = property.GetValue(obj1);
+                var value2 = property.GetValue(obj2);
+
+                // Skip comparison if value2 is null or an empty string
+                if (value2 == null || (value2 is string str && string.IsNullOrEmpty(str)))
+                {
+                    continue;
+                }
+
+                if (!Equals(value1, value2))
+                    return true;
+            }
+
+            return false;
+        }
+
+        internal static List<SPMATData> GetMTOData(string projid)
+        {
+            List<SPMATData> mtodata = new List<SPMATData>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string  query = "SELECT Discipline,Area,Unit,Phase,Const_Area,ISO,Ident_no,qty,qty_unit,Fabrication_Type,Spec,'' as Pos,IsoRevisionDate,IsoRevision,IsLocked FROM [dbo].[SPMAT_MTOData] where ProjectID="+projid+" order by ISO";
+
+
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        SPMATData mto = new SPMATData();
+                        mto.Discipline =dr[0].ToString();
+                        mto.Area = dr[1].ToString(); ;
+                        mto.Unit = dr[2].ToString();
+                        mto.Phase = dr[3].ToString();
+                        mto.Const_Area = dr[4].ToString();
+                        mto.ISO = dr[5].ToString();
+                        mto.Ident_no = dr[6].ToString();
+                        mto.qty = DecParse(dr[7].ToString().Trim()).Value;
+                        mto.qty_unit = dr[8].ToString();
+                        mto.Fabrication_Type = dr[9].ToString();
+                        mto.Spec = dr[10].ToString();
+                        mto.Pos = dr[11].ToString();
+                        mto.IsoRevisionDate = dr[12].ToString();
+                        mto.IsoRevision = dr[13].ToString();
+                        mto.IsLocked = dr[14].ToString();
+
+                        if (!mtodata.Contains(mto))
+                        {
+                            mtodata.Add(mto);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return mtodata;
+        }
+
+        public static void MarkMaterialAsChecked(int materialID)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+                var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
+                cmd.Parameters.AddWithValue("@MaterialID", materialID);
+                cmd.ExecuteNonQuery();
+            }
+        }
+        public static void DeleteMTOEntry(string discipline, string area, string unit, string phase, string constArea, string iso, string ident, string spec)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+                var cmd = new SqlCommand(@"
+            DELETE FROM SPMAT_MTOData
+            WHERE Discipline = @Discipline AND Area = @Area
+            AND Unit = @Unit AND Phase = @Phase AND Const_Area = @Const_Area
+            AND ISO = @ISO AND Ident_no = @Ident_no AND Spec = @Spec", cn);
+                cmd.Parameters.AddWithValue("@Discipline", discipline);
+                cmd.Parameters.AddWithValue("@Area", area);
+                cmd.Parameters.AddWithValue("@Unit", unit);
+                cmd.Parameters.AddWithValue("@Phase", phase);
+                cmd.Parameters.AddWithValue("@Const_Area", constArea);
+                cmd.Parameters.AddWithValue("@ISO", iso);
+                cmd.Parameters.AddWithValue("@Ident_no", ident);
+                cmd.Parameters.AddWithValue("@Spec", spec);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public static void UncheckREQEntry(string discipline, string area, string unit, string phase, string constArea, string iso, string ident, string spec)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+                var cmd = new SqlCommand(@"
+            UPDATE SPMAT_REQData
+            SET Checked = 0
+            WHERE Discipline = @Discipline AND Area = @Area
+            AND Unit = @Unit AND Phase = @Phase AND Const_Area = @Const_Area
+            AND ISO = @ISO AND Ident_no = @Ident_no AND Spec = @Spec", cn);
+                cmd.Parameters.AddWithValue("@Discipline", discipline);
+                cmd.Parameters.AddWithValue("@Area", area);
+                cmd.Parameters.AddWithValue("@Unit", unit);
+                cmd.Parameters.AddWithValue("@Phase", phase);
+                cmd.Parameters.AddWithValue("@Const_Area", constArea);
+                cmd.Parameters.AddWithValue("@ISO", iso);
+                cmd.Parameters.AddWithValue("@Ident_no", ident);
+                cmd.Parameters.AddWithValue("@Spec", spec);
+                cmd.ExecuteNonQuery();
+            }
+        }
+        #endregion
+        #endregion
+    }
+
+
+}
