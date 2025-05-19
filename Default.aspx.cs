@@ -96,8 +96,6 @@ namespace Wood_MaterialControl
                 else
                 {
                     btnLogin.CssClass = "hidden";
-                  //  diverror.Style["display"] = "block";
-                  //  lblerror.Text = "Sorry , you do not currently have access to this sytem";
                 }
 
             }
