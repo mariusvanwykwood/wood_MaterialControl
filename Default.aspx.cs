@@ -31,7 +31,6 @@ namespace Wood_MaterialControl
                         else if (userfailure == 2)
                         {
                             lblerror.Text = "You Are not Authorized to use the selected Functionality";
-
                         }
                         else
                         {
@@ -84,6 +83,7 @@ namespace Wood_MaterialControl
         protected void ddlemployees_SelectedIndexChanged(object sender, EventArgs e)
         {
             diverror.Style["display"] = "none";
+            lblerror.Text = "";
             var uid = int.Parse(ddlemployees.SelectedValue);
             if (uid != 0)
             {
@@ -95,6 +95,8 @@ namespace Wood_MaterialControl
                 }
                 else
                 {
+                    diverror.Style["display"] = "block";
+                    lblerror.Text = "You do not have access";
                     btnLogin.CssClass = "hidden";
                 }
 
