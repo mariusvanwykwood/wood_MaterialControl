@@ -13,6 +13,11 @@ using System.Linq;
 using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
 using System.Configuration;
 using DocumentFormat.OpenXml.Wordprocessing;
+using System.Data.OleDb;
+using DocumentFormat.OpenXml.Drawing.Spreadsheet;
+using DocumentFormat.OpenXml.Office.Word;
+using System.Diagnostics;
+using static Wood_MaterialControl.DataClass;
 
 
 
@@ -409,7 +414,7 @@ WHERE M_SYS.M_COMMODITY_CODE_NLS.NLS_ID = 1
   AND (M_SYS.M_SPEC_HEADERS.SPEC_CODE, M_SYS.M_SPEC_HEADERS.XREV) IN (
       SELECT SPEC_CODE, MAX(XREV)
       FROM M_SYS.M_SPEC_HEADERS
-      WHERE PROJ_ID = :mainProjectID
+      WHERE Date_Published is not null and PROJ_ID = :mainProjectID
       GROUP BY SPEC_CODE
   )
 ORDER BY LineClass, ShortCode";
@@ -1532,7 +1537,7 @@ END";
                  [Const_Area], [ISO], [Ident_no], [qty], [qty_unit], [Fabrication_Type],
                  [Spec], [IsoRevisionDate], [IsoRevision], [IsLocked], [Code])
             VALUES
-                (@MaterialID, @ProjectID, @Discipline, @Area, @Unit, @Phase,
+                (@MaterialID, @ProjectID, 'MATCON_PIPING', @Area, @Unit, @Phase,
                  @Const_Area, @ISO, @Ident_no, @qty, @qty_unit, @Fabrication_Type,
                  @Spec, @IsoRevisionDate, @IsoRevision, @IsLocked, @Code)";
 
@@ -1798,7 +1803,167 @@ END";
             return nextID;
         }
 
+        internal static void RemoveFromFinal(string MTOID, string ISO)
+        {
+
+
+            using (SqlConnection conn = new SqlConnection(conMat))
+            {
+                conn.Open();
+
+                // Insert into SPMAT_FIleExports
+                string UpdateQuery = @"
+             Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0 where ISO in (@ISO)
+            delete from[SPMAT_REQData_Temp] where ISO in (@ISO)
+            delete from[SPMAT_IntrimData] where ISO in (@ISO)
+            Delete from[SPMAT_MTOData] where ISO in (@ISO)";
+                using (SqlCommand UpdateCmd = new SqlCommand(UpdateQuery, conn))
+                {
+                    UpdateCmd.Parameters.AddWithValue("@ISO", ISO);
+                    UpdateCmd.ExecuteNonQuery();
+                }
+            }
+        }
+
         #endregion
+        #endregion
+        #region ACCESS
+        public class ISOData
+        {
+            public string Drawing_Number { get; set; }
+            public string Revision { get; set; }
+            public DateTime? RevisionDate { get; set; }
+            public bool IsoLock { get; set; }
+        }
+        internal static List<ISOData> GetIsoData(object SourceAcessDB)
+        {
+            List<ISOData> isodata = new List<ISOData>();
+            string connString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + SourceAcessDB + ";";
+            using (OleDbConnection connection = new OleDbConnection(connString))
+            {
+                connection.Open();
+                OleDbDataReader reader = null;
+                //                var cmdtext = "SELECT ISODATA.DRAWING_NUMBER, ISODATA.HAZ_CAT,  qry_s3d_isometric_str_Attribute.oid FROM qry_s3d_isometric_str_Attribute RIGHT JOIN ISODATA ON qry_s3d_isometric_str_Attribute.DRAWING_NUMBER = ISODATA.DRAWING_NUMBER GROUP BY ISODATA.DRAWING_NUMBER, ISODATA.HAZ_CAT, qry_s3d_isometric_str_Attribute.oid HAVING(((ISODATA.DRAWING_NUMBER)= 'DR-056-3137_001'));";
+                var cmdtext = "SELECT DISTINCT ISODATA.DRAWING_NUMBER, [Revision History].Date, [Revision History].REVISION, [Production History].[Ready for AFC] FROM (ISODATA INNER JOIN [Revision History] ON ISODATA.ID = [Revision History].ID) INNER JOIN [Production History] ON ISODATA.ID = [Production History].ID ORDER BY ISODATA.DRAWING_NUMBER, [Revision History].Date DESC;";
+                OleDbCommand command = new OleDbCommand(cmdtext, connection);
+                reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    ISOData iso = new ISOData();
+                    iso.Drawing_Number = reader[0].ToString();
+                    if (string.IsNullOrEmpty(reader[1].ToString()))
+                    {
+                        iso.RevisionDate = DateTime.MinValue;
+                    }
+                    else
+                    {
+                        iso.RevisionDate = DateTime.Parse(reader[1].ToString());
+                    }
+                    iso.Revision = reader[2].ToString();
+                    if (string.IsNullOrEmpty(reader[3].ToString()) && iso.RevisionDate == DateTime.MinValue)
+                    {
+                        iso.IsoLock = false;
+                    }
+                    else
+                    {
+                        iso.IsoLock = true;
+                    }
+                    isodata.Add(iso);
+
+                }
+            }
+            return isodata;
+        }
+
+        internal static string GetIsoAccess(string projid)
+        {
+            string accesspath = "";
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  top 1 [IsoControlPath]  FROM [dbo].[SPMAT_ISOControl] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        accesspath = dr[0].ToString();
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return accesspath;
+        }
+
+        internal static void RefreshISO(ISOData i)
+        {
+            using (SqlConnection cn = new SqlConnection(conMat))
+            {
+                try
+                {
+                    string query = @"
+IF EXISTS (
+    SELECT 1 FROM [dbo].[SPMAT_REQData]
+    WHERE ISO = @ISO
+      AND (IsoRevisionDate <> @IsoRevisionDate OR IsoRevision <> @IsoRevision OR IsLocked <> @IsLocked)
+)
+BEGIN
+    -- Move to Deleted table
+    INSERT INTO [dbo].[SPMAT_REQData_Deleted]
+    (MaterialID, ProjectID, Discipline, Area, Unit, Phase, Const_Area, ISO, Ident_no, qty, qty_unit,
+     Fabrication_Type, Spec, IsoRevisionDate, IsoRevision, IsLocked, Code, Checked, Moved, MovedDate, Processed)
+    SELECT MaterialID, ProjectID, Discipline, Area, Unit, Phase, Const_Area, ISO, Ident_no, qty, qty_unit,
+           Fabrication_Type, Spec, IsoRevisionDate, IsoRevision, IsLocked, Code, Checked, Moved, MovedDate, 0
+    FROM [dbo].[SPMAT_REQData]
+    WHERE ISO = @ISO;
+
+    -- Update the record
+    UPDATE [dbo].[SPMAT_REQData]
+    SET IsoRevisionDate = @IsoRevisionDate,
+        IsoRevision = @IsoRevision,
+        IsLocked = @IsLocked,
+        Checked = 0,
+        Moved = 0,
+        MovedDate = NULL
+    WHERE ISO = @ISO;
+END";
+
+                    using (SqlCommand cmd = new SqlCommand(query, cn))
+                    {
+                        cmd.Parameters.AddWithValue("@ISO", i.Drawing_Number ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@IsoRevisionDate", i.RevisionDate ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@IsoRevision", i.Revision ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@IsLocked", i.IsoLock);
+
+                        cn.Open();
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Error in RefreshISO: " + ex.Message);
+                }
+            }
+        }
+
+       
+
         #endregion
     }
 }

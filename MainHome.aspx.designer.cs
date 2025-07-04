@@ -132,6 +132,15 @@ namespace Wood_MaterialControl
         protected global::System.Web.UI.WebControls.Button btnloadiso;
 
         /// <summary>
+        /// btnrefreshIso control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnrefreshIso;
+
+        /// <summary>
         /// pnlExcelUpload control.
         /// </summary>
         /// <remarks>
@@ -283,42 +292,6 @@ namespace Wood_MaterialControl
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnSubmit;
-
-        /// <summary>
-        /// btnviewspmat control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnviewspmat;
-
-        /// <summary>
-        /// pnlSPMATView control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Panel pnlSPMATView;
-
-        /// <summary>
-        /// gvSPMAT control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.GridView gvSPMAT;
-
-        /// <summary>
-        /// btnExportSPMAT control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnExportSPMAT;
 
         /// <summary>
         /// btnviewInterim control.

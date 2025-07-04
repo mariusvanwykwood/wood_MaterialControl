@@ -143,7 +143,7 @@ namespace Wood_MaterialControl
 
                 // Reload grid
                 // btnloadiso_Click(null, null);
-                ForceButtons("btnloadiso",false);
+                ForceButtons("btnloadiso", false);
             }
         }
 
@@ -198,7 +198,7 @@ namespace Wood_MaterialControl
                     ddliso.DataTextField = "DDLListName";
                     ddliso.DataValueField = "DDLList_ID";
                     ddliso.DataBind();
-                    btnviewspmat.CssClass = "shown";
+                    // btnviewspmat.CssClass = "shown";
                     btnviewInterim.CssClass = "shown";
                     btnViewFinal.CssClass = "shown";
                 }
@@ -577,7 +577,12 @@ namespace Wood_MaterialControl
             btnCancelAdd_Click(null, null);
             ReloadIso();
             //btnviewspmat_Click(null, null);
-            ForceButtons("btnviewspmat",true);
+            //ForceButtons("btnviewspmat",true);
+            var Projid = ddlprojsel.SelectedValue;
+            List<SPMATDBData> mtoData = DataClass.GetWorkingMTOData(Projid);
+            Session["SPMATExportData"] = mtoData;
+            ForceButtons("btnExportSPMAT", true);
+            ForceButtons("btnviewInterim", true);
 
         }
 
@@ -1559,7 +1564,18 @@ namespace Wood_MaterialControl
 
             // Create a temporary SPMATDBData object
             var testArea = ViewState["CurrentArea"] as string ?? "";
-            var testDisipline= ViewState["CurrentDisipline"] as string ?? "";
+            var testDisipline = ViewState["CurrentDisipline"] as string ?? "";
+
+            decimal parsedQty;
+            bool isValidNumber = decimal.TryParse(txtAddQty.Text.Trim(), out parsedQty);
+            bool hasFraction = isValidNumber && parsedQty % 1 != 0;
+
+            string selectedShortcode = ddlAddShortcode.SelectedValue?.Trim();
+            string qtyUnit = (string.Equals(selectedShortcode, "PIP", StringComparison.OrdinalIgnoreCase))
+             ? "m"
+             : (hasFraction ? "m" : "pc");
+
+
             var newSPMAT = new SPMATDBData
             {
                 MaterialID = tempID, // Temporary ID
@@ -1572,7 +1588,7 @@ namespace Wood_MaterialControl
                 ISO = ddliso.SelectedValue,
                 Ident_no = ddlAddIdent.SelectedValue,
                 qty = txtAddQty.Text.Trim(),
-                qty_unit = "pc",
+                qty_unit = qtyUnit,
                 Fabrication_Type = "Undefined",
                 Spec = ddlAddSpec.SelectedValue,
                 IsoRevision = "",
@@ -1689,48 +1705,48 @@ namespace Wood_MaterialControl
 
         #endregion
 
-        protected void btnviewspmat_Click(object sender, EventArgs e)
-        {
-            diverror.Style["display"] = "none";
-            lblerror.Text = "";
-            if (string.IsNullOrEmpty(ddlprojsel.SelectedValue))
-            {
-                diverror.Style["display"] = "block";
-               lblerror.Text = "Please select a Spec and  Project before loading.";
-                lblerror.ForeColor = System.Drawing.Color.Red;
-                return;
-            }
-            var Projid = ddlprojsel.SelectedValue;
-            List<SPMATDBData> mtoData = DataClass.GetWorkingMTOData(Projid);
+        //protected void btnviewspmat_Click(object sender, EventArgs e)
+        //{
+        //    diverror.Style["display"] = "none";
+        //    lblerror.Text = "";
+        //    if (string.IsNullOrEmpty(ddlprojsel.SelectedValue))
+        //    {
+        //        diverror.Style["display"] = "block";
+        //       lblerror.Text = "Please select a Spec and  Project before loading.";
+        //        lblerror.ForeColor = System.Drawing.Color.Red;
+        //        return;
+        //    }
+        //    var Projid = ddlprojsel.SelectedValue;
+        //    List<SPMATDBData> mtoData = DataClass.GetWorkingMTOData(Projid);
 
-            gvSPMAT.EmptyDataText = "No Working Data";
-            gvSPMAT.DataSource = mtoData;
-            gvSPMAT.DataBind();
-            pnlSPMATView.Visible = true;
-            if (mtoData.Count > 0)
-            {
-                btnExportSPMAT.Style["Display"] = "block";
-            }
-            else
-            {
-                btnExportSPMAT.Style["Display"] = "none";
-            }
+        //    gvSPMAT.EmptyDataText = "No Working Data";
+        //    gvSPMAT.DataSource = mtoData;
+        //    gvSPMAT.DataBind();
+        //    pnlSPMATView.Visible = true;
+        //    if (mtoData.Count > 0)
+        //    {
+        //        btnExportSPMAT.Style["Display"] = "block";
+        //    }
+        //    else
+        //    {
+        //        btnExportSPMAT.Style["Display"] = "none";
+        //    }
 
-            ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionTwo", "var el = document.getElementById('collapseTwo'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
+        //    ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionTwo", "var el = document.getElementById('collapseTwo'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
 
-            // Store in session for export
-            Session["SPMATExportData"] = mtoData;
+        //    // Store in session for export
+        //    Session["SPMATExportData"] = mtoData;
 
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
-            {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
-                BindExcelGridView(griddata, area, iso, bindData: true);
-            }
+        //    if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+        //    {
+        //        var griddata = ViewState["GridData"] as List<GridData>;
+        //        var area = ViewState["CurrentArea"].ToString();
+        //        var iso = ViewState["CurrentIso"].ToString();
+        //        BindExcelGridView(griddata, area, iso, bindData: true);
+        //    }
 
 
-        }
+        //}
 
         protected void btnExportSPMAT_Click(object sender, EventArgs e)
         {
@@ -1740,15 +1756,15 @@ namespace Wood_MaterialControl
             if (data == null || !data.Any()) return;
             List<int> materialIDs = data.Select(d => d.MaterialID).Distinct().ToList();
             MoveToIntrim(data, materialIDs);
-            gvSPMAT.EmptyDataText = "No Working Data";
-            gvSPMAT.DataSource = null;
-            gvSPMAT.DataBind();
-            pnlSPMATView.Visible = false;
-            btnExportSPMAT.Style["Display"] = "none";
+            // gvSPMAT.EmptyDataText = "No Working Data";
+            // gvSPMAT.DataSource = null;
+            // gvSPMAT.DataBind();
+            // pnlSPMATView.Visible = false;
+            // btnExportSPMAT.Style["Display"] = "none";
             //btnviewspmat_Click(null, null);
-            ForceButtons("btnviewspmat", false);
-           // btnviewInterim_Click(null, null);
-            ForceButtons("btnviewInterim",true);
+            //ForceButtons("btnviewspmat", false);
+            // btnviewInterim_Click(null, null);
+            // ForceButtons("btnviewInterim",true);
 
 
         }
@@ -1809,18 +1825,18 @@ namespace Wood_MaterialControl
             var data = Session["SPMATIntrimData"] as List<SPMATIntrimData>;
             if (data == null || !data.Any()) return;
             MoveToFinal(data);
-            gvSPMAT.EmptyDataText = "No Working Data";
-            gvSPMAT.DataSource = null;
-            gvSPMAT.DataBind();
-            pnlSPMATView.Visible = false;
+            //gvSPMAT.EmptyDataText = "No Working Data";
+            //gvSPMAT.DataSource = null;
+            //gvSPMAT.DataBind();
+            //pnlSPMATView.Visible = false;
 
-            btnExportSPMAT.Style["Display"] = "none";
+            //btnExportSPMAT.Style["Display"] = "none";
             //btnviewspmat_Click(null, null);
-            ForceButtons("btnviewspmat", false);
+            //ForceButtons("btnviewspmat", false);
             //btnviewInterim_Click(null, null);
             ForceButtons("btnviewInterim", false);
             //btnViewFinal_Click(null, null);
-            ForceButtons("btnViewFinal",true);
+            ForceButtons("btnViewFinal", true);
         }
 
         private void MoveToFinal(List<SPMATIntrimData> data)
@@ -1831,7 +1847,7 @@ namespace Wood_MaterialControl
             }
             var Projid = ddlprojsel.SelectedValue;
             List<SPMATIntrimData> mtoData = DataClass.GetMTOIntrimData(Projid);
-            gvInterim.EmptyDataText = "No Intrim MTO Data";
+            gvInterim.EmptyDataText = "No Working MTO Data";
             gvInterim.DataSource = mtoData;
             gvInterim.DataBind();
             pnlViewInterimData.Visible = true;
@@ -1873,7 +1889,7 @@ namespace Wood_MaterialControl
             var Projid = ddlprojsel.SelectedValue;
             List<SPMATIntrimData> mtoData = DataClass.GetMTOIntrimData(Projid);
 
-            gvInterim.EmptyDataText = "No Intrim MTO Data";
+            gvInterim.EmptyDataText = "No Working MTO Data";
             gvInterim.DataSource = mtoData;
             gvInterim.DataBind();
             pnlViewInterimData.Visible = true;
@@ -1936,7 +1952,7 @@ namespace Wood_MaterialControl
                 return;
             }
             var Projid = ddlprojsel.SelectedValue;
-            List<SPMATData> mtoData = DataClass.GetMTOData(Projid,false);
+            List<SPMATData> mtoData = DataClass.GetMTOData(Projid, false);
 
             gvFinal.EmptyDataText = "No MTO Export Data";
             gvFinal.DataSource = mtoData;
@@ -2030,7 +2046,7 @@ namespace Wood_MaterialControl
                 worksheet.Cell(row, 5).Value = item.Const_Area ?? "";
                 worksheet.Cell(row, 6).Value = item.ISO ?? "";
                 worksheet.Cell(row, 7).Value = item.Ident_no ?? "";
-                worksheet.Cell(row, 8).Value = item.qty.ToString().Replace(".",",");
+                worksheet.Cell(row, 8).Value = item.qty.ToString().Replace(",", ".");
                 worksheet.Cell(row, 9).Value = item.qty_unit ?? "";
                 worksheet.Cell(row, 10).Value = item.Fabrication_Type ?? "";
                 worksheet.Cell(row, 11).Value = item.Spec ?? "";
@@ -2072,13 +2088,13 @@ namespace Wood_MaterialControl
                     }
                 }
                 catch { }
-               
+
                 Session.Add(FileName, efile);
                 btnSaveFile.CssClass = "shown";
                 btnSaveFile.ToolTip = FileName;
             }
         }
-        
+
         private void ForceButtons(string btnID, bool expand)
         {
             var Projid = ddlprojsel.SelectedValue;
@@ -2194,31 +2210,31 @@ namespace Wood_MaterialControl
                     btnSubmit.Style["display"] = "block";
                     btnAddNew.Style["display"] = "block";
                     break;
-                case "btnviewspmat":
-                    List<SPMATDBData> mtoData3 = DataClass.GetWorkingMTOData(Projid);
+                //case "btnviewspmat":
+                //    List<SPMATDBData> mtoData3 = DataClass.GetWorkingMTOData(Projid);
 
-                    gvSPMAT.EmptyDataText = "No Working Data";
-                    gvSPMAT.DataSource = mtoData3;
-                    gvSPMAT.DataBind();
-                    pnlSPMATView.Visible = true;
-                    if (mtoData3.Count > 0)
-                    {
-                        btnExportSPMAT.Style["Display"] = "block";
-                    }
-                    else
-                    {
-                        btnExportSPMAT.Style["Display"] = "none";
-                    }
-                    Session["SPMATExportData"] = mtoData3;
-                    if (expand)
-                    {
-                        ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionTwo", "var el = document.getElementById('collapseTwo'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
-                    }
-                    break;
+                //    gvSPMAT.EmptyDataText = "No Working Data";
+                //    gvSPMAT.DataSource = mtoData3;
+                //    gvSPMAT.DataBind();
+                //    pnlSPMATView.Visible = true;
+                //    if (mtoData3.Count > 0)
+                //    {
+                //        btnExportSPMAT.Style["Display"] = "block";
+                //    }
+                //    else
+                //    {
+                //        btnExportSPMAT.Style["Display"] = "none";
+                //    }
+                //    Session["SPMATExportData"] = mtoData3;
+                //    if (expand)
+                //    {
+                //        ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionTwo", "var el = document.getElementById('collapseTwo'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
+                //    }
+                //    break;
                 case "btnviewInterim":
                     List<SPMATIntrimData> mtoData4 = DataClass.GetMTOIntrimData(Projid);
 
-                    gvInterim.EmptyDataText = "No Intrim MTO Data";
+                    gvInterim.EmptyDataText = "No Working MTO Data";
                     gvInterim.DataSource = mtoData4;
                     gvInterim.DataBind();
                     pnlViewInterimData.Visible = true;
@@ -2249,6 +2265,23 @@ namespace Wood_MaterialControl
                         ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionSix", "var el = document.getElementById('collapseSix'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
                     }
                     break;
+                case "btnExportSPMAT":
+                    diverror.Style["display"] = "none";
+                    lblerror.Text = "";
+                    var data = Session["SPMATExportData"] as List<SPMATDBData>;
+                    if (data == null || !data.Any()) return;
+                    List<int> materialIDs = data.Select(d => d.MaterialID).Distinct().ToList();
+                    MoveToIntrim(data, materialIDs);
+                    // gvSPMAT.EmptyDataText = "No Working Data";
+                    // gvSPMAT.DataSource = null;
+                    // gvSPMAT.DataBind();
+                    // pnlSPMATView.Visible = false;
+                    // btnExportSPMAT.Style["Display"] = "none";
+                    //btnviewspmat_Click(null, null);
+                    //ForceButtons("btnviewspmat", false);
+                    // btnviewInterim_Click(null, null);
+                    break;
+
             }
 
 
@@ -2260,7 +2293,7 @@ namespace Wood_MaterialControl
             lblerror.Text = "";
             pnlFileMan.Visible = true;
             var Projid = ddlprojsel.SelectedValue;
-            List<SPMATData> mtoData = DataClass.GetMTOData(Projid,true);
+            List<SPMATData> mtoData = DataClass.GetMTOData(Projid, true);
             pnlFinalMTO.Visible = true;
             gvExported.EmptyDataText = "No Exported MTO Data";
             gvExported.DataSource = mtoData;
@@ -2313,7 +2346,7 @@ namespace Wood_MaterialControl
                     // Rebind the GridView after update
                     //btnViewFinal_Click(null, null);
                     //btnViewExported_Click(null,null);
-                    ForceButtons("btnViewFinal",false);
+                    ForceButtons("btnViewFinal", false);
                     ForceButtons("btnViewExported", true);
 
                 }
@@ -2380,7 +2413,7 @@ namespace Wood_MaterialControl
                 return;
             }
             DataClass.DownloadFile dl = (DataClass.DownloadFile)Session[sesname];
-            if (dl==null)
+            if (dl == null)
             {
                 lblMessage.Text = "No file to download or file already downloaded.";
                 lblMessage.ForeColor = System.Drawing.Color.Red;
@@ -2408,6 +2441,86 @@ namespace Wood_MaterialControl
             excelWorkbook.SaveAs(fs);
             fs.Position = 0;
             return fs;
+        }
+
+        protected void btnrefreshIso_Click(object sender, EventArgs e)
+        {
+            diverror.Style["display"] = "none";
+            lblerror.Text = "";
+            var Projid = ddlprojsel.SelectedValue;
+            var spec = DataClass.LoadSpectDataFromDB(ddlprojects.SelectedValue.ToString().Trim());
+            string isoaccesspath = DataClass.GetIsoAccess(Projid);
+            var IsoData = DataClass.GetIsoData(isoaccesspath);
+            foreach (var i in IsoData)
+            {
+                DataClass.RefreshISO(i);
+            }
+            var projid = ddlprojsel.SelectedValue;
+            List<DDLList> iso = DataClass.GetProjectISO(projid, false);
+            if (iso.Count > 0)
+            {
+                ddliso.DataSource = iso;
+                ddliso.DataTextField = "DDLListName";
+                ddliso.DataValueField = "DDLList_ID";
+                ddliso.DataBind();
+                // btnviewspmat.CssClass = "shown";
+                btnviewInterim.CssClass = "shown";
+                btnViewFinal.CssClass = "shown";
+                diverror.Style["display"] = "block";
+                lblerror.Text = "Iso Data Refreshed.";
+                lblerror.ForeColor = System.Drawing.Color.Blue;
+            }
+            else
+            {
+                diverror.Style["display"] = "block";
+                lblerror.Text = "No Iso in correct state.";
+                lblerror.ForeColor = System.Drawing.Color.Red;
+                return;
+            }
+        }
+
+        protected void gvFinal_RowDataBound(object sender, GridViewRowEventArgs e)
+        {
+
+            if (e.Row.RowType == DataControlRowType.DataRow)
+            {
+                // Replace with your actual username check
+                var EID = int.Parse(Session["EID"].ToString());
+                bool btnvis = false;
+                if (EID == 447 || EID == 240)
+                {
+                    btnvis = true;
+                }
+                else
+                {
+                    btnvis = false;
+                }
+                Button btnRemove = (Button)e.Row.FindControl("btnRemoveFinal");
+                if (btnRemove != null)
+                {
+                    btnRemove.Visible = btnvis;
+                }
+
+            }
+        }
+
+        protected void gvFinal_RowCommand(object sender, GridViewCommandEventArgs e)
+        {
+            if (e.CommandName == "RemoveFinalRow")
+            {
+                int fileId = Convert.ToInt32(e.CommandArgument);
+                GridViewRow row = ((Button)e.CommandSource).NamingContainer as GridViewRow;
+
+                var keys = gvFinal.DataKeys[row.RowIndex];
+                string MTOID = keys["MTOID"].ToString();
+                string ISO = keys["ISO"].ToString();
+                DataClass.RemoveFromFinal(MTOID, ISO);
+
+                ReloadIso();
+                // Refresh the grid
+                //btnviewInterim_Click(null, null);
+                ForceButtons("btnViewFinal", true);
+            }
         }
     }
 }

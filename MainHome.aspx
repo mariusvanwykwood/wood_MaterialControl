@@ -93,7 +93,7 @@
                                 <br /><br />
                                 <asp:Label ID="lbliso" runat="server" Text="Select Iso" AssociatedControlID="ddliso"></asp:Label>
                                 <asp:DropDownListChosen ID="ddliso" runat="server" NoResultsText="No results match." DataPlaceHolder="Search..." AllowSingleDeselect="true" Width="250px"></asp:DropDownListChosen>
-                                <asp:Button ID="btnloadiso" runat="server" OnClick="btnloadiso_Click" Text="Load Iso" />
+                                <asp:Button ID="btnloadiso" runat="server" OnClick="btnloadiso_Click" Text="Load Iso" /> &nbsp;<asp:Button ID="btnrefreshIso" runat="server" OnClick="btnrefreshIso_Click" Text="Refresh ISO Data" Visible="false" />
                                 <br /><br />
                                 <asp:Panel ID="pnlExcelUpload" runat="server" Visible="false" style="flex-grow: 1;">
                                     <br />
@@ -159,7 +159,7 @@
                                     <br />
                                     <asp:Label ID="lblMessage" runat="server" ForeColor="Red" />
                                     <br />
-                                    <asp:Button ID="btnSubmit" runat="server" Text="Save IsoData" OnClick="btnSubmit_Click" />
+                                    <asp:Button ID="btnSubmit" runat="server" Text="Save & Confirm IsoData" OnClick="btnSubmit_Click" />
                                 </asp:Panel>
                                 
                             </div>
@@ -168,7 +168,7 @@
                 </div>
             </div>
 
-            <div class="accordion-item">
+            <%--<div class="accordion-item">
                 <h2 class="accordion-header" id="headingTwo">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
                         Step 2: Working Data
@@ -207,18 +207,18 @@
                         
                             </div>
                     </div>
-                </div>
+                </div>--%>
 
             <div class="accordion-item">
                      <h2 class="accordion-header" id="headingThree">
                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
-                      Step 3: Intrim Data
+                      Step 2: Working Data
                      </button>
                     </h2>
                 <div id="collapseThree" class="accordion-collapse collapse" >
                     <div class="accordion-body">
                         <br />
-<asp:Button ID="btnviewInterim" runat="server" Text="Load Intrim Data" OnClick="btnviewInterim_Click" CssClass="hidden" />
+<asp:Button ID="btnviewInterim" runat="server" Text="Load Working Data" OnClick="btnviewInterim_Click" CssClass="hidden" />
 <br />
                         <asp:Panel ID="pnlViewInterimData" runat="server" Visible="false">
                             <asp:Label ID="lblintrim" runat="server" Font-Bold="true" Font-Size="Large" Text="Removing an Item will Remove All for that ISO" ForeColor="Red" />
@@ -258,7 +258,7 @@
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingFour">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">
-                        Step 4: MTO Export Data
+                        Step 3: MTO Export Data
                     </button>
                 </h2>
                 <div id="collapseFour" class="accordion-collapse collapse" >
@@ -267,7 +267,7 @@
 <asp:Button ID="btnViewFinal" runat="server" Text="Load MTO Export Data" OnClick="btnViewFinal_Click" CssClass="hidden" />
 <br />
                         <asp:Panel ID="pnlFinalMTO" runat="server" Visible="false">
-                            <asp:GridView ID="gvFinal" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvInterim_RowCommand" DataKeyNames="MTOID">
+                            <asp:GridView ID="gvFinal" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvFinal_RowCommand" DataKeyNames="MTOID,ISO" OnRowDataBound="gvFinal_RowDataBound">
                                 <Columns>
                                     <asp:BoundField DataField="MTOID" HeaderText="MTOID" Visible="false"/>
                                     <asp:BoundField DataField="Discipline" HeaderText="Discipline" />
@@ -286,6 +286,16 @@
                                     <asp:BoundField DataField="IsLocked" HeaderText="Locked" />
                                     <asp:BoundField DataField="Code" HeaderText="Code" />
                                     <asp:BoundField DataField="ImportStatus" HeaderText="Imported Status" Visible="false"/>
+                                    <asp:TemplateField HeaderText="Actions">
+    <ItemTemplate>
+        <asp:Button ID="btnRemoveFinal" runat="server" Text="Remove" 
+            CommandName="RemoveFinalRow" 
+            CommandArgument='<%# Eval("MTOID") %>' 
+            Visible="false"
+            OnClientClick="return confirm('Are you sure you want to remove this item?');" />
+    </ItemTemplate>
+</asp:TemplateField>
+
                                 </Columns>
                             </asp:GridView>
                             <br />
@@ -301,7 +311,7 @@
             <div class="accordion-item">
     <h2 class="accordion-header" id="headingFive">
         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive">
-            Step 5: Final MTO Data
+            Step 4: Final MTO Data
         </button>
     </h2>
     <div id="collapseFive" class="accordion-collapse collapse" >
