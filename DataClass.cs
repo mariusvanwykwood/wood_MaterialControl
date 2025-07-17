@@ -1659,6 +1659,101 @@ END";
                     updateCmd.Parameters.AddWithValue("@Status", importCode);
                     updateCmd.ExecuteNonQuery();
                 }
+                // 3. Process each MaterialID
+                foreach (string id in ids.Split(','))
+                {
+                    if (int.TryParse(id.Trim(), out int materialID))
+                    {
+                        string holdingSelectQuery = @"
+                    SELECT TOP 1 *
+                    FROM SPMAT_REQData_Holding
+                    WHERE MaterialID = @MaterialID
+                    ORDER BY IsoRevision ASC, InsertedDate ASC";
+
+                        using (SqlCommand selectCmd = new SqlCommand(holdingSelectQuery, conn))
+                        {
+                            selectCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                            using (SqlDataReader reader = selectCmd.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    int holdingID = Convert.ToInt32(reader["HoldingID"]);
+
+                                    // Copy current REQData to Deleted
+                                    string copyQuery = @"
+                                INSERT INTO SPMAT_REQData_Deleted (
+                                    MaterialID, ProjectID, Discipline, Area, Unit, Phase, Const_Area, ISO, Ident_no,
+                                    qty, qty_unit, Fabrication_Type, Spec, IsoRevisionDate, IsoRevision, IsLocked,
+                                    Code, Checked, Moved, MovedDate, Processed
+                                )
+                                SELECT MaterialID, ProjectID, Discipline, Area, Unit, Phase, Const_Area, ISO, Ident_no,
+                                       qty, qty_unit, Fabrication_Type, Spec, IsoRevisionDate, IsoRevision, IsLocked,
+                                       Code, Checked, Moved, MovedDate, 0
+                                FROM SPMAT_REQData
+                                WHERE MaterialID = @MaterialID";
+                                    using (SqlCommand copyCmd = new SqlCommand(copyQuery, conn))
+                                    {
+                                        copyCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                        copyCmd.ExecuteNonQuery();
+                                    }
+
+                                    // Update REQData with values from Holding
+                                    string updateReqQuery = @"
+                                UPDATE SPMAT_REQData
+                                SET Discipline = @Discipline,
+                                    Area = @Area,
+                                    Unit = @Unit,
+                                    Phase = @Phase,
+                                    Const_Area = @Const_Area,
+                                    ISO = @ISO,
+                                    Ident_no = @Ident_no,
+                                    qty = @qty,
+                                    qty_unit = @qty_unit,
+                                    Fabrication_Type = @Fabrication_Type,
+                                    Spec = @Spec,
+                                    IsoRevisionDate = @IsoRevisionDate,
+                                    IsoRevision = @IsoRevision,
+                                    IsLocked = @IsLocked,
+                                    Code = @Code,
+                                    Checked = 0,
+                                    Moved = 0,
+                                    MovedDate = NULL
+                                WHERE MaterialID = @MaterialID";
+                                    using (SqlCommand updateCmd = new SqlCommand(updateReqQuery, conn))
+                                    {
+                                        updateCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                        updateCmd.Parameters.AddWithValue("@Discipline", reader["Discipline"]);
+                                        updateCmd.Parameters.AddWithValue("@Area", reader["Area"]);
+                                        updateCmd.Parameters.AddWithValue("@Unit", reader["Unit"]);
+                                        updateCmd.Parameters.AddWithValue("@Phase", reader["Phase"]);
+                                        updateCmd.Parameters.AddWithValue("@Const_Area", reader["Const_Area"]);
+                                        updateCmd.Parameters.AddWithValue("@ISO", reader["ISO"]);
+                                        updateCmd.Parameters.AddWithValue("@Ident_no", reader["Ident_no"]);
+                                        updateCmd.Parameters.AddWithValue("@qty", reader["qty"]);
+                                        updateCmd.Parameters.AddWithValue("@qty_unit", reader["qty_unit"]);
+                                        updateCmd.Parameters.AddWithValue("@Fabrication_Type", reader["Fabrication_Type"]);
+                                        updateCmd.Parameters.AddWithValue("@Spec", reader["Spec"]);
+                                        updateCmd.Parameters.AddWithValue("@IsoRevisionDate", reader["IsoRevisionDate"]);
+                                        updateCmd.Parameters.AddWithValue("@IsoRevision", reader["IsoRevision"]);
+                                        updateCmd.Parameters.AddWithValue("@IsLocked", reader["IsLocked"]);
+                                        updateCmd.Parameters.AddWithValue("@Code", reader["Code"]);
+                                        updateCmd.ExecuteNonQuery();
+                                    }
+
+                                    reader.Close();
+
+                                    // Delete from Holding using HoldingID
+                                    string deleteHoldingQuery = "DELETE FROM SPMAT_REQData_Holding WHERE HoldingID = @HoldingID";
+                                    using (SqlCommand deleteCmd = new SqlCommand(deleteHoldingQuery, conn))
+                                    {
+                                        deleteCmd.Parameters.AddWithValue("@HoldingID", holdingID);
+                                        deleteCmd.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
         }
