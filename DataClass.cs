@@ -817,7 +817,7 @@ ORDER BY LineClass, ShortCode";
             try
             {
                 string query = " SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code]  FROM [dbo].[SPMAT_REQData] where Checked = 1 and Moved = 0 and Deleted=0 and ProjectID = " + ProjectID.Trim() +
-                               " and MaterialID not in (SELECT distinct [MaterialID] FROM[dbo].[SPMAT_REQData_Temp] where Checked = 1 and Moved = 0 and ProjectID = " + ProjectID.Trim() + " ) " +
+                               " and MaterialID not in (SELECT distinct [MaterialID] FROM[dbo].[SPMAT_REQData_Temp] where Checked = 1 and Moved = 0 and Deleted=0 and ProjectID = " + ProjectID.Trim() + " ) " +
                                " UNION ALL " +
                                " SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code] FROM [dbo].[SPMAT_REQData_Temp] where Checked = 1 and Moved = 0 and ProjectID = " + ProjectID.Trim();
                 using (cn = new System.Data.SqlClient.SqlConnection(conMat))
@@ -1273,7 +1273,7 @@ ORDER BY LineClass, ShortCode";
             using (var cn = new SqlConnection(conMat))
             {
                 cn.Open();
-                var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
+                var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1, Deleted=1 WHERE [MaterialID] = @MaterialID", cn);
                 cmd.Parameters.AddWithValue("@MaterialID", materialID);
                 cmd.ExecuteNonQuery();
             }
@@ -1319,7 +1319,7 @@ ORDER BY LineClass, ShortCode";
                 cn.Open();
                 var cmd = new SqlCommand(@"
             UPDATE SPMAT_REQData
-            SET Checked = 0, Moved = 0
+            SET Checked = 0, Moved = 0, Deleted=0 
             WHERE ISO = @ISO ", cn);
                 cmd.Parameters.AddWithValue("@ISO", iso);
                 cmd.ExecuteNonQuery();
@@ -1908,7 +1908,7 @@ END";
 
                 // Insert into SPMAT_FIleExports
                 string UpdateQuery = @"
-             Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0 where ISO in (@ISO)
+             Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0,Deleted=0 where ISO in (@ISO)
             delete from[SPMAT_REQData_Temp] where ISO in (@ISO)
             delete from[SPMAT_IntrimData] where ISO in (@ISO)
             Delete from[SPMAT_MTOData] where ISO in (@ISO)";

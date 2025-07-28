@@ -12,6 +12,7 @@ using DocumentFormat.OpenXml.Drawing.Spreadsheet;
 using System.Web.UI;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Org.BouncyCastle.Cms;
+using Irony;
 
 namespace Wood_MaterialControl
 {
@@ -19,11 +20,11 @@ namespace Wood_MaterialControl
     {
         protected void Page_Init(object sender, EventArgs e)
         {
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
 
                 // Rebuild columns only, no data binding
                 BindExcelGridView(griddata, area, iso, bindData: false);
@@ -63,26 +64,26 @@ namespace Wood_MaterialControl
                     ddlclient.Items.Insert(0, new System.Web.UI.WebControls.ListItem("-- Select --", ""));
 
                     // Bind grid only on first load
-                    if (ViewState["GridData"] != null)
+                    if (Session["GridData"] != null)
                     {
-                        var griddata = ViewState["GridData"] as List<GridData>;
-                        var area = ViewState["CurrentArea"].ToString();
-                        var iso = ViewState["CurrentIso"].ToString();
+                        var griddata = Session["GridData"] as List<GridData>;
+                        var area = Session["CurrentArea"].ToString();
+                        var iso = Session["CurrentIso"].ToString();
                         BindExcelGridView(griddata, area, iso, bindData: true);
                     }
 
                     // Always set HttpContext items for templates
-                    HttpContext.Current.Items["Units"] = ViewState["Units"];
-                    HttpContext.Current.Items["Phases"] = ViewState["Phases"];
-                    HttpContext.Current.Items["ConstAreas"] = ViewState["ConstAreas"];
+                    HttpContext.Current.Items["Units"] = Session["Units"];
+                    HttpContext.Current.Items["Phases"] = Session["Phases"];
+                    HttpContext.Current.Items["ConstAreas"] = Session["ConstAreas"];
 
 
                 }
                 else if (IsPostBack)
                 {
-                    HttpContext.Current.Items["Units"] = ViewState["Units"];
-                    HttpContext.Current.Items["Phases"] = ViewState["Phases"];
-                    HttpContext.Current.Items["ConstAreas"] = ViewState["ConstAreas"];
+                    HttpContext.Current.Items["Units"] = Session["Units"];
+                    HttpContext.Current.Items["Phases"] = Session["Phases"];
+                    HttpContext.Current.Items["ConstAreas"] = Session["ConstAreas"];
                     string eventTarget = Request["__EVENTTARGET"];
                     string clickedButton = Request.Form["btnAddNew"] ?? Request.Form["btnSaveNew"] ?? Request.Form["btnCancelAdd"];
 
@@ -99,9 +100,9 @@ namespace Wood_MaterialControl
                          )
                         )
                     {
-                        var griddata = ViewState["GridData"] as List<GridData>;
-                        var area = ViewState["CurrentArea"].ToString();
-                        var iso = ViewState["CurrentIso"].ToString();
+                        var griddata = Session["GridData"] as List<GridData>;
+                        var area = Session["CurrentArea"].ToString();
+                        var iso = Session["CurrentIso"].ToString();
                         BindExcelGridView(griddata, area, iso, bindData: true);
                     }
 
@@ -129,13 +130,13 @@ namespace Wood_MaterialControl
             {
                 int rowIndex = Convert.ToInt32(e.CommandArgument);
                 int materialID = Convert.ToInt32(ExcelGridView.DataKeys[rowIndex].Value);
-                var tempgriddata = ViewState["TmpGridData"] as List<GridData> ?? new List<GridData>();
+                var tempgriddata = Session["TmpGridData"] as List<GridData> ?? new List<GridData>();
                 if (tempgriddata.Where(x => x.MaterialID == materialID).Any())
                 {
                     var itemToremove = tempgriddata.SingleOrDefault(x => x.MaterialID == materialID);
                     tempgriddata.Remove(itemToremove);
                 }
-                ViewState["TmpGridData"] = tempgriddata;
+                Session["TmpGridData"] = tempgriddata;
                 // Mark as Checked in DB
                 DataClass.MarkMaterialAsChecked(materialID);
                 DataClass.DeleteTempMaterial(materialID);
@@ -215,7 +216,7 @@ namespace Wood_MaterialControl
 
         protected void btnloadiso_Click(object sender, EventArgs e)
         {
-            ViewState["GridData"] = null;
+            ClearSession();
             ExcelGridView.DataSource = null;
             lblerror.Text = "";
             diverror.Style["display"] = "none";
@@ -259,21 +260,22 @@ namespace Wood_MaterialControl
             var unitPhaseMap = DataClass.GetUnitPhaseMap(projid);
 
             var unitConstAreaMap = DataClass.GetUnitPhaseConstAreaMap(projid);
-            ViewState["GridData"] = griddata;
-            ViewState["OriginalDBData"] = griddata;
-            ViewState["CurrentIso"] = isosheet;
-            ViewState["CurrentArea"] = area;
-            ViewState["CurrentDisipline"] = disipline;
-            ViewState["Units"] = distinctUnits;
-            ViewState["Phases"] = distinctPhases;
-            ViewState["ConstAreas"] = distinctConstAreas;
-            ViewState["UnitPhaseMap"] = unitPhaseMap;
-            ViewState["UnitConstAreaMap"] = unitConstAreaMap;
-            ViewState["Specs"] = distinctSpecs;
-            ViewState["ShortCodes"] = distinctShortCodes;
-            ViewState["Idents"] = distinctIdents;
-            ViewState["SpecShortCodeMap"] = specShortcodeMap;
-            ViewState["ShortCodeIdentMap"] = shortCodeIdentMap;
+            Session["GridData"] = griddata;
+            Session["OriginalDBData"] = griddata;
+            Session["TmpGridData"] = griddata;
+            Session["CurrentIso"] = isosheet;
+            Session["CurrentArea"] = area;
+            Session["CurrentDisipline"] = disipline;
+            Session["Units"] = distinctUnits;
+            Session["Phases"] = distinctPhases;
+            Session["ConstAreas"] = distinctConstAreas;
+            Session["UnitPhaseMap"] = unitPhaseMap;
+            Session["UnitConstAreaMap"] = unitConstAreaMap;
+            Session["Specs"] = distinctSpecs;
+            Session["ShortCodes"] = distinctShortCodes;
+            Session["Idents"] = distinctIdents;
+            Session["SpecShortCodeMap"] = specShortcodeMap;
+            Session["ShortCodeIdentMap"] = shortCodeIdentMap;
 
             HttpContext.Current.Items["Units"] = distinctUnits;
             HttpContext.Current.Items["Phases"] = distinctPhases;
@@ -285,6 +287,26 @@ namespace Wood_MaterialControl
             BindExcelGridView(griddata, area, isosheet, bindData: true);
             btnSubmit.Style["display"] = "block";
             btnAddNew.Style["display"] = "block";
+        }
+
+        private void ClearSession()
+        {
+            Session["GridData"] = null;
+            Session["TmpGridData"] = null;
+            Session["OriginalDBData"] = null;
+            Session["CurrentIso"] = null;
+            Session["CurrentArea"] = null;
+            Session["CurrentDisipline"] = null;
+            Session["Units"] = null;
+            Session["Phases"] = null;
+            Session["ConstAreas"] = null;
+            Session["UnitPhaseMap"] = null;
+            Session["UnitConstAreaMap"] = null;
+            Session["Specs"] = null;
+            Session["ShortCodes"] = null;
+            Session["Idents"] = null;
+            Session["SpecShortCodeMap"] = null;
+            Session["ShortCodeIdentMap"] = null;
         }
 
         public List<GridData> PopulateGridData(List<SPMATDBData> spmatList, List<SpecData> specList)
@@ -394,11 +416,11 @@ namespace Wood_MaterialControl
             List<SPMATDBData> updatedItems = new List<SPMATDBData>();
 
             var loadedSpecs = Session["LoadedSpecs"] as List<SpecData>;
-            var griddata = ViewState["GridData"] as List<GridData>;
-            var dbdata = ViewState["OriginalDBData"] as List<GridData>;
-            var area = ViewState["CurrentArea"]?.ToString();
-            var disipline = ViewState["CurrentDisipline"]?.ToString();
-            var iso = ViewState["CurrentIso"]?.ToString();
+            var griddata = Session["GridData"] as List<GridData>;
+            var dbdata = Session["OriginalDBData"] as List<GridData>;
+            var area = Session["CurrentArea"]?.ToString();
+            var disipline = Session["CurrentDisipline"]?.ToString();
+            var iso = Session["CurrentIso"]?.ToString();
             BindExcelGridView(griddata, area, iso, bindData: true);
             var chklist = Session["CheckedMaterialIDs"] as List<int> ?? new List<int>();
             var changedUnits = Session["ChangedUnits"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
@@ -564,7 +586,7 @@ namespace Wood_MaterialControl
             }
             catch { }
             Session.Clear();
-            ViewState.Clear();
+            Session.Clear();
             Session["EID"] = eid;
             Session["ClientList"] = clientlist;
             ddliso.ClearSelection();
@@ -715,14 +737,14 @@ namespace Wood_MaterialControl
 
                 }
 
-                // Get mappings from ViewState
-                var unitPhaseMap = ViewState["UnitPhaseMap"] as Dictionary<string, List<string>>;
-                var unitConstAreaMap = ViewState["UnitConstAreaMap"] as Dictionary<string, Dictionary<string, List<string>>>;
-                var specShortCodeMap = ViewState["SpecShortCodeMap"] as Dictionary<string, List<string>>;
-                var shortCodeIdentMap = ViewState["ShortCodeIdentMap"] as Dictionary<string, Dictionary<string, List<string>>>;
+                // Get mappings from Session
+                var unitPhaseMap = Session["UnitPhaseMap"] as Dictionary<string, List<string>>;
+                var unitConstAreaMap = Session["UnitConstAreaMap"] as Dictionary<string, Dictionary<string, List<string>>>;
+                var specShortCodeMap = Session["SpecShortCodeMap"] as Dictionary<string, List<string>>;
+                var shortCodeIdentMap = Session["ShortCodeIdentMap"] as Dictionary<string, Dictionary<string, List<string>>>;
 
-                var allUnits = ViewState["Units"] as List<string>;
-                var allSpecs = ViewState["Specs"] as List<string>;
+                var allUnits = Session["Units"] as List<string>;
+                var allSpecs = Session["Specs"] as List<string>;
 
                 if (ddlUnit != null)
                 {
@@ -1060,9 +1082,9 @@ namespace Wood_MaterialControl
         private void BindExcelGridView(List<GridData> griddata, string area, string isosheet, bool bindData = true)
         {
             var gridDataTable = ConvertToDataTable(griddata);
-            if (ViewState["TmpGridData"] != null)
+            if (Session["TmpGridData"] != null)
             {
-                var tmpgd = ViewState["TmpGridData"] as List<GridData>;
+                var tmpgd = Session["TmpGridData"] as List<GridData>;
                 var existid = griddata.Select(x => x.MaterialID).Distinct().ToList();
                 var notinlistalready = tmpgd.Where(x => !existid.Contains(x.MaterialID)).ToList();
                 if (notinlistalready.Count > 0)
@@ -1279,6 +1301,7 @@ namespace Wood_MaterialControl
 
         private void txtQty_TextChanged(object sender, EventArgs e)
         {
+            lblMessage.Text = "";
             System.Web.UI.WebControls.TextBox txt = (System.Web.UI.WebControls.TextBox)sender;
             GridViewRow row = (GridViewRow)txt.NamingContainer;
             int materialID = Convert.ToInt32(ExcelGridView.DataKeys[row.RowIndex].Value);
@@ -1293,7 +1316,7 @@ namespace Wood_MaterialControl
             if (selectedShortcode == "PIP")
             {
                 // Allow decimal
-                isValid = decimal.TryParse(inputQty, out _);
+                isValid = !DecParse(inputQty).HasError;
             }
             else
             {
@@ -1466,11 +1489,11 @@ namespace Wood_MaterialControl
             lblMessage.Text = "";
             pnlAddForm.Visible = true;
 
-            ddlAddUnit.DataSource = ViewState["Units"] as List<string>;
+            ddlAddUnit.DataSource = Session["Units"] as List<string>;
             ddlAddUnit.DataBind();
             ddlAddUnit.Items.Insert(0, new ListItem("-- Select --", ""));
 
-            ddlAddSpec.DataSource = ViewState["Specs"] as List<string>;
+            ddlAddSpec.DataSource = Session["Specs"] as List<string>;
             ddlAddSpec.DataBind();
             ddlAddSpec.Items.Insert(0, new ListItem("-- Select --", ""));
 
@@ -1548,7 +1571,7 @@ namespace Wood_MaterialControl
                 return;
             }
 
-            var griddata = ViewState["GridData"] as List<GridData> ?? new List<GridData>();
+            var griddata = Session["GridData"] as List<GridData> ?? new List<GridData>();
             var specList = Session["LoadedSpecs"] as List<SpecData> ?? new List<SpecData>();
             var tempgriddata = new List<GridData>();
 
@@ -1563,8 +1586,8 @@ namespace Wood_MaterialControl
             Session["TempMaterialID"] = tempID - 1;
 
             // Create a temporary SPMATDBData object
-            var testArea = ViewState["CurrentArea"] as string ?? "";
-            var testDisipline = ViewState["CurrentDisipline"] as string ?? "";
+            var testArea = Session["CurrentArea"] as string ?? "";
+            var testDisipline = Session["CurrentDisipline"] as string ?? "";
 
             decimal parsedQty;
             bool isValidNumber = decimal.TryParse(txtAddQty.Text.Trim(), out parsedQty);
@@ -1627,9 +1650,9 @@ namespace Wood_MaterialControl
             }
 
 
-            ViewState["GridData"] = griddata;
+            Session["GridData"] = griddata;
             tempgriddata = griddata;
-            ViewState["TmpGridData"] = tempgriddata;
+            Session["TmpGridData"] = tempgriddata;
 
             // Clear form fields for next entry
             ddlAddUnit.ClearSelection();
@@ -1645,7 +1668,7 @@ namespace Wood_MaterialControl
             pnlAddForm.Visible = false;
 
 
-            BindExcelGridView(griddata, ViewState["CurrentArea"].ToString(), ViewState["CurrentIso"].ToString(), bindData: true);
+            BindExcelGridView(griddata, Session["CurrentArea"].ToString(), Session["CurrentIso"].ToString(), bindData: true);
 
 
         }
@@ -1653,7 +1676,7 @@ namespace Wood_MaterialControl
         protected void ddlAddUnit_SelectedIndexChanged(object sender, EventArgs e)
         {
             var unit = ddlAddUnit.SelectedValue;
-            var unitPhaseMap = ViewState["UnitPhaseMap"] as Dictionary<string, List<string>>;
+            var unitPhaseMap = Session["UnitPhaseMap"] as Dictionary<string, List<string>>;
             if (unitPhaseMap != null && unitPhaseMap.ContainsKey(unit))
             {
                 ddlAddPhase.DataSource = unitPhaseMap[unit];
@@ -1667,7 +1690,7 @@ namespace Wood_MaterialControl
         {
             var unit = ddlAddUnit.SelectedValue;
             var phase = ddlAddPhase.SelectedValue;
-            var unitConstAreaMap = ViewState["UnitConstAreaMap"] as Dictionary<string, Dictionary<string, List<string>>>;
+            var unitConstAreaMap = Session["UnitConstAreaMap"] as Dictionary<string, Dictionary<string, List<string>>>;
             if (unitConstAreaMap != null && unitConstAreaMap.ContainsKey(unit) && unitConstAreaMap[unit].ContainsKey(phase))
             {
                 ddlAddConstArea.DataSource = unitConstAreaMap[unit][phase];
@@ -1678,7 +1701,7 @@ namespace Wood_MaterialControl
         protected void ddlAddSpec_SelectedIndexChanged(object sender, EventArgs e)
         {
             var spec = ddlAddSpec.SelectedValue;
-            var specShortCodeMap = ViewState["SpecShortCodeMap"] as Dictionary<string, List<string>>;
+            var specShortCodeMap = Session["SpecShortCodeMap"] as Dictionary<string, List<string>>;
             if (specShortCodeMap != null && specShortCodeMap.ContainsKey(spec))
             {
                 ddlAddShortcode.DataSource = specShortCodeMap[spec];
@@ -1693,7 +1716,7 @@ namespace Wood_MaterialControl
         {
             var spec = ddlAddSpec.SelectedValue;
             var shortcode = ddlAddShortcode.SelectedValue;
-            var shortCodeIdentMap = ViewState["ShortCodeIdentMap"] as Dictionary<string, Dictionary<string, List<string>>>;
+            var shortCodeIdentMap = Session["ShortCodeIdentMap"] as Dictionary<string, Dictionary<string, List<string>>>;
             if (shortCodeIdentMap != null && shortCodeIdentMap.ContainsKey(spec) && shortCodeIdentMap[spec].ContainsKey(shortcode))
             {
                 ddlAddIdent.DataSource = shortCodeIdentMap[spec][shortcode];
@@ -1737,11 +1760,11 @@ namespace Wood_MaterialControl
         //    // Store in session for export
         //    Session["SPMATExportData"] = mtoData;
 
-        //    if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+        //    if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
         //    {
-        //        var griddata = ViewState["GridData"] as List<GridData>;
-        //        var area = ViewState["CurrentArea"].ToString();
-        //        var iso = ViewState["CurrentIso"].ToString();
+        //        var griddata = Session["GridData"] as List<GridData>;
+        //        var area = Session["CurrentArea"].ToString();
+        //        var iso = Session["CurrentIso"].ToString();
         //        BindExcelGridView(griddata, area, iso, bindData: true);
         //    }
 
@@ -1864,11 +1887,11 @@ namespace Wood_MaterialControl
             // Store in session for export
             Session["SPMATIntrimData"] = mtoData;
 
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
             // btnviewInterim_Click(null, null);
@@ -1907,11 +1930,11 @@ namespace Wood_MaterialControl
             ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionThree", "var el = document.getElementById('collapseThree'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
             Session["SPMATIntrimData"] = mtoData;
 
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
         }
@@ -1971,11 +1994,11 @@ namespace Wood_MaterialControl
             // Store in session for export
             Session["SPMATFinalData"] = mtoData;
 
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
         }
@@ -2139,7 +2162,7 @@ namespace Wood_MaterialControl
                     }
                     break;
                 case "btnloadiso":
-                    ViewState["GridData"] = null;
+                    Session["GridData"] = null;
                     ExcelGridView.DataSource = null;
                     lblerror.Text = "";
                     diverror.Style["display"] = "none";
@@ -2158,9 +2181,13 @@ namespace Wood_MaterialControl
                     var isosheet = ddliso.SelectedValue;
                     var projid = ddlprojsel.SelectedValue;
                     List<SPMATDBData> sptest = DataClass.GetIsoSheetMTOData(isosheet, projid, false);
-                    var area = sptest.Select(x => x.Area).Distinct().First().ToString();
-                    var disipline = sptest.Select(x => x.Discipline).Distinct().First().ToString();
-
+                    var area = "";
+                    var disipline = "";
+                    if (sptest.Count > 0)
+                    {
+                        area = sptest.Select(x => x.Area).Distinct().First().ToString();
+                        disipline = sptest.Select(x => x.Discipline).Distinct().First().ToString();
+                    }
                     var distinctSpecslist = spec.GroupBy(s => new { s.Lineclass, s.Ident }).Select(g => g.First()).ToList();
 
                     var griddata = PopulateGridData(sptest, distinctSpecslist).Where(x => x.ISO == isosheet).ToList();
@@ -2183,32 +2210,70 @@ namespace Wood_MaterialControl
                     var unitPhaseMap = DataClass.GetUnitPhaseMap(projid);
 
                     var unitConstAreaMap = DataClass.GetUnitPhaseConstAreaMap(projid);
-                    ViewState["GridData"] = griddata;
-                    ViewState["OriginalDBData"] = griddata;
-                    ViewState["CurrentIso"] = isosheet;
-                    ViewState["CurrentArea"] = area;
-                    ViewState["CurrentDisipline"] = disipline;
-                    ViewState["Units"] = distinctUnits;
-                    ViewState["Phases"] = distinctPhases;
-                    ViewState["ConstAreas"] = distinctConstAreas;
-                    ViewState["UnitPhaseMap"] = unitPhaseMap;
-                    ViewState["UnitConstAreaMap"] = unitConstAreaMap;
-                    ViewState["Specs"] = distinctSpecs;
-                    ViewState["ShortCodes"] = distinctShortCodes;
-                    ViewState["Idents"] = distinctIdents;
-                    ViewState["SpecShortCodeMap"] = specShortcodeMap;
-                    ViewState["ShortCodeIdentMap"] = shortCodeIdentMap;
+                    if (griddata.Count > 0)
+                    {
+                        Session["GridData"] = griddata;
+                        Session["TmpGridData"] = griddata;
+                        Session["OriginalDBData"] = griddata;
+                        Session["CurrentIso"] = isosheet;
+                        Session["CurrentArea"] = area;
+                        Session["CurrentDisipline"] = disipline;
+                        Session["Units"] = distinctUnits;
+                        Session["Phases"] = distinctPhases;
+                        Session["ConstAreas"] = distinctConstAreas;
+                        Session["UnitPhaseMap"] = unitPhaseMap;
+                        Session["UnitConstAreaMap"] = unitConstAreaMap;
+                        Session["Specs"] = distinctSpecs;
+                        Session["ShortCodes"] = distinctShortCodes;
+                        Session["Idents"] = distinctIdents;
+                        Session["SpecShortCodeMap"] = specShortcodeMap;
+                        Session["ShortCodeIdentMap"] = shortCodeIdentMap;
 
-                    HttpContext.Current.Items["Units"] = distinctUnits;
-                    HttpContext.Current.Items["Phases"] = distinctPhases;
-                    HttpContext.Current.Items["ConstAreas"] = distinctConstAreas;
-                    HttpContext.Current.Items["Specs"] = distinctSpecs;
-                    HttpContext.Current.Items["ShortCodes"] = distinctShortCodes;
-                    HttpContext.Current.Items["Idents"] = distinctIdents;
+                        HttpContext.Current.Items["Units"] = distinctUnits;
+                        HttpContext.Current.Items["Phases"] = distinctPhases;
+                        HttpContext.Current.Items["ConstAreas"] = distinctConstAreas;
+                        HttpContext.Current.Items["Specs"] = distinctSpecs;
+                        HttpContext.Current.Items["ShortCodes"] = distinctShortCodes;
+                        HttpContext.Current.Items["Idents"] = distinctIdents;
+                        BindExcelGridView(griddata, area, isosheet, bindData: true);
+                        btnSubmit.Style["display"] = "block";
+                        btnAddNew.Style["display"] = "block";
+                    }
+                    else
+                    {
+                        Session["GridData"] = null;
+                        Session["TmpGridData"] = null;
+                        Session["OriginalDBData"] = null;
+                        isosheet = "";
+                        Session["CurrentIso"] = isosheet;
+                        Session["CurrentArea"] = area;
+                        Session["CurrentDisipline"] = disipline;
+                        Session["Units"] = distinctUnits;
+                        Session["Phases"] = distinctPhases;
+                        Session["ConstAreas"] = distinctConstAreas;
+                        Session["UnitPhaseMap"] = unitPhaseMap;
+                        Session["UnitConstAreaMap"] = unitConstAreaMap;
+                        Session["Specs"] = distinctSpecs;
+                        Session["ShortCodes"] = distinctShortCodes;
+                        Session["Idents"] = distinctIdents;
+                        Session["SpecShortCodeMap"] = specShortcodeMap;
+                        Session["ShortCodeIdentMap"] = shortCodeIdentMap;
+                        ddliso.ClearSelection();
+                        HttpContext.Current.Items["Units"] = distinctUnits;
+                        HttpContext.Current.Items["Phases"] = distinctPhases;
+                        HttpContext.Current.Items["ConstAreas"] = distinctConstAreas;
+                        HttpContext.Current.Items["Specs"] = distinctSpecs;
+                        HttpContext.Current.Items["ShortCodes"] = distinctShortCodes;
+                        HttpContext.Current.Items["Idents"] = distinctIdents;
+                        BindExcelGridView(griddata, area, isosheet, bindData: true);
+                        btnSubmit.Style["display"] = "none";
+                        btnAddNew.Style["display"] = "none";
+                        ExcelGridView.Visible = false;
+                        pnlExcelUpload.Visible = false;
+                        ReloadIso();
+                    }
 
-                    BindExcelGridView(griddata, area, isosheet, bindData: true);
-                    btnSubmit.Style["display"] = "block";
-                    btnAddNew.Style["display"] = "block";
+                      
                     break;
                 //case "btnviewspmat":
                 //    List<SPMATDBData> mtoData3 = DataClass.GetWorkingMTOData(Projid);
@@ -2306,11 +2371,11 @@ namespace Wood_MaterialControl
 
             ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionFive", "var el = document.getElementById('collapseFive'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
             // Store in session for export
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
         }
@@ -2373,11 +2438,11 @@ namespace Wood_MaterialControl
 
             ScriptManager.RegisterStartupScript(this, GetType(), "expandAccordionSix", "var el = document.getElementById('collapseSix'); var bsCollapse = new bootstrap.Collapse(el, {toggle: true});", true);
             // Store in session for export
-            if (ViewState["GridData"] != null && ViewState["CurrentIso"] != null && ViewState["CurrentArea"] != null)
+            if (Session["GridData"] != null && Session["CurrentIso"] != null && Session["CurrentArea"] != null)
             {
-                var griddata = ViewState["GridData"] as List<GridData>;
-                var area = ViewState["CurrentArea"].ToString();
-                var iso = ViewState["CurrentIso"].ToString();
+                var griddata = Session["GridData"] as List<GridData>;
+                var area = Session["CurrentArea"].ToString();
+                var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
         }
