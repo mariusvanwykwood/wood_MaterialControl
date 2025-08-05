@@ -5,9 +5,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Reflection;
-using iText.Layout.Properties;
-using iText.Layout.Borders;
-using Border = iText.Layout.Borders.Border;
 using Oracle.ManagedDataAccess.Client;
 using System.Linq;
 using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
@@ -357,6 +354,7 @@ namespace Wood_MaterialControl
             public string FileMTOIDs { get; set; }
             public string FileCompleted { get; set; }
             public string Import { get; set; }
+            public byte[] FileData { get; set; }
         }
         #endregion
         #region DataCalls
@@ -1332,7 +1330,7 @@ ORDER BY LineClass, ShortCode";
             }
         }
 
-        public static void SaveExportRecord(string fileName, List<int> materialIDs)
+        public static int SaveExportRecord(string fileName, List<int> materialIDs)
         {
             string ids = string.Join(",", materialIDs);
             int FileID = 0;
@@ -1360,6 +1358,26 @@ ORDER BY LineClass, ShortCode";
                 using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
                 {
                     updateCmd.Parameters.AddWithValue("@FileID", FileID);
+                    updateCmd.ExecuteNonQuery();
+                }
+            }
+            return FileID;
+        }
+        public static void SaveExportRecordFile(int FileID, byte[] filedata)
+        {
+            using (SqlConnection conn = new SqlConnection(conMat))
+            {
+                conn.Open();
+
+                // Update SPMAT_IntrimData
+                string updateQuery = $@"
+            UPDATE SPMAT_FileExports
+            SET FileData = @FileData
+            WHERE FinalFileID =@FileID";
+                using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
+                {
+                    updateCmd.Parameters.AddWithValue("@FileID", FileID);
+                    updateCmd.Parameters.AddWithValue("@FileData", filedata);
                     updateCmd.ExecuteNonQuery();
                 }
             }
@@ -1587,7 +1605,7 @@ END";
             System.Data.SqlClient.SqlConnection cn = null;
             try
             {
-                string query = "SELECT Distinct [FinalFileID],[FinalFileName] ,[FileMTOIDs],[FileCompleted],Case when [FileCompleted]=1 then (Select top 1 ImportedStatus from  [dbo].[SPMAT_MTOData] where FileID=[FinalFileID]) END  Import FROM [dbo].[SPMAT_FileExports] " +
+                string query = "SELECT Distinct [FinalFileID],[FinalFileName] ,[FileMTOIDs],[FileCompleted],Case when [FileCompleted]=1 then (Select top 1 ImportedStatus from  [dbo].[SPMAT_MTOData] where FileID=[FinalFileID]) END  Import,[FileData] FROM [dbo].[SPMAT_FileExports] " +
                                " where FinalFileID in(Select  distinct FIleID FROM [dbo].[SPMAT_MTOData] where ProjectID = " + projid + " and FileID is not null)";
 
 
@@ -1605,6 +1623,10 @@ END";
                         file.FileMTOIDs = dr[2].ToString(); ;
                         file.FileCompleted = dr[3].ToString();
                         file.Import = dr[4].ToString();
+                        if (dr[5] != DBNull.Value)
+                        {
+                            file.FileData = (byte[])dr[5];
+                        }
                         if (!filedata.Contains(file))
                         {
                             filedata.Add(file);

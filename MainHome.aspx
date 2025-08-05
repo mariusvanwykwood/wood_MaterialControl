@@ -319,7 +319,8 @@
             <br />
 <asp:Button ID="btnViewExported" runat="server" Text="Load Final MTO Data" OnClick="btnViewExported_Click"/><br />
                         <asp:Panel ID="pnlFileMan" runat="server" Visible="false">
-                             <asp:GridView ID="gvExported" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered">
+                             <asp:GridView ID="gvExported" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered"
+                                 OnRowCreated="gvExported_RowCreated"  >
      <Columns>
          <asp:BoundField DataField="MTOID" HeaderText="MTOID" Visible="false"/>
          <asp:BoundField DataField="Discipline" HeaderText="Discipline" />
@@ -327,7 +328,14 @@
          <asp:BoundField DataField="Unit" HeaderText="Unit" />
          <asp:BoundField DataField="Phase" HeaderText="Phase" />
          <asp:BoundField DataField="Const_Area" HeaderText="Const Area" />
-         <asp:BoundField DataField="ISO" HeaderText="ISO" />
+        <asp:TemplateField HeaderText="ISO">
+            <HeaderTemplate>
+                <span>ISO  </span><asp:DropDownList ID="ddlIsoFilter" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlIsoFilter_SelectedIndexChanged" />
+            </HeaderTemplate>
+            <ItemTemplate>
+                <%# Eval("ISO") %>
+            </ItemTemplate>
+        </asp:TemplateField>
          <asp:BoundField DataField="Ident_no" HeaderText="Ident No" />
          <asp:BoundField DataField="qty" HeaderText="Quantity" />
          <asp:BoundField DataField="qty_unit" HeaderText="Unit" />
@@ -341,10 +349,24 @@
      </Columns>
  </asp:GridView>
  <br />
-    <asp:GridView ID="grFiles" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="grFiles_RowCommand" DataKeyNames="FileMTOIDs" >
+<asp:Button ID="btnExportFiltered" runat="server" Text="Export Filtered MTO Data" OnClick="btnExportFiltered_Click" />
+<br />
+<br />
+    <asp:GridView ID="grFiles" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="grFiles_RowCommand" DataKeyNames="FileMTOIDs" OnRowDataBound="grFiles_RowDataBound" >
     <Columns>
         <asp:BoundField DataField="FinalFileID" HeaderText="FinalFileID" Visible="false"/>
         <asp:BoundField DataField="FinalFileName" HeaderText="FinalFileName" />
+        <asp:TemplateField HeaderText="Download">
+    <ItemTemplate>
+        <asp:HyperLink ID="lnkDownload" runat="server"
+            NavigateUrl='<%# "DownloadFileHelper.aspx?fileID=" + Eval("FinalFileID") %>'
+            Text="Download"
+            Target="_blank"
+            Visible="false" />
+    </ItemTemplate>
+</asp:TemplateField>
+
+
         <asp:BoundField DataField="FileMTOIDs" HeaderText="FileMTOIDs"  Visible="false"/>
         <asp:TemplateField HeaderText="File Imported">
     <ItemTemplate>
