@@ -58,7 +58,7 @@
     <header>
         <nav>
             <div class="navigation-header">
-                <a href="MainHome.aspx" title="Material Control Main Home">
+                <a href="Default.aspx" title="Material Control Main Home">
                     <img class="large-logo" src="images/dd-logo.png" style="padding-left: 12px; margin-top: 16px;" />
                     <img class="small-logo" src="images/dd-small-logo.png" style="padding-left: 24px; margin-top: 16px; width: 48px;"/>
                 </a>
@@ -168,46 +168,6 @@
                 </div>
             </div>
 
-            <%--<div class="accordion-item">
-                <h2 class="accordion-header" id="headingTwo">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
-                        Step 2: Working Data
-                    </button>
-                </h2>
-                <div id="collapseTwo" class="accordion-collapse collapse" >
-                    <div class="accordion-body">
-                        <br />
-<asp:Button ID="btnviewspmat" runat="server" Text="Load Working Data" OnClick="btnviewspmat_Click" CssClass="hidden" />
-<br />
-                        <asp:Panel ID="pnlSPMATView" runat="server" Visible="false">
-                            <asp:GridView ID="gvSPMAT" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" DataKeyNames="Discipline,Area,Unit,Phase,Const_Area,ISO,Ident_no,Spec">
-                                <Columns>
-                                    <asp:BoundField DataField="MaterialID" HeaderText="MaterialID" Visible="false"/>
-                                    <asp:BoundField DataField="ProjectID" HeaderText="ProjectID" Visible="false"/>
-                                    <asp:BoundField DataField="Discipline" HeaderText="Discipline" />
-                                    <asp:BoundField DataField="Area" HeaderText="Area" />
-                                    <asp:BoundField DataField="Unit" HeaderText="Unit" />
-                                    <asp:BoundField DataField="Phase" HeaderText="Phase" />
-                                    <asp:BoundField DataField="Const_Area" HeaderText="Const Area" />
-                                    <asp:BoundField DataField="ISO" HeaderText="ISO" />
-                                    <asp:BoundField DataField="Ident_no" HeaderText="Ident No" />
-                                    <asp:BoundField DataField="qty" HeaderText="Quantity" />
-                                    <asp:BoundField DataField="qty_unit" HeaderText="Unit" />
-                                    <asp:BoundField DataField="Spec" HeaderText="Spec" />
-                                    <asp:BoundField DataField="Fabrication_Type" HeaderText="Fabrication Type" />
-                                    <asp:BoundField DataField="IsoRevisionDate" HeaderText="Revision Date" />
-                                    <asp:BoundField DataField="IsoRevision" HeaderText="Revision" />
-                                    <asp:BoundField DataField="Lock" HeaderText="Locked" />
-                                    <asp:BoundField DataField="Code" HeaderText="Code" />
-                                </Columns>
-                            </asp:GridView>
-                            <br />
-                            <asp:Button ID="btnExportSPMAT" runat="server" Text="Confirm For MTO" OnClick="btnExportSPMAT_Click"/>
-                        </asp:Panel>
-                        
-                            </div>
-                    </div>
-                </div>--%>
 
             <div class="accordion-item">
                      <h2 class="accordion-header" id="headingThree">
@@ -240,6 +200,8 @@
                                     <asp:BoundField DataField="IsoRevisionDate" HeaderText="Revision Date" />
                                     <asp:BoundField DataField="IsoRevision" HeaderText="Revision" />
                                     <asp:BoundField DataField="IsLocked" HeaderText="Locked" />
+                                    <asp:BoundField DataField="IsoUniqeRevID" HeaderText="IsoUniqeRevID" />
+                                    
                                     <asp:TemplateField HeaderText="Actions">
                                         <ItemTemplate>
                                             <asp:Button ID="btnRemove" runat="server" Text="Remove" CommandName="RemoveRow" CommandArgument='<%# Eval("INTID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>
@@ -286,6 +248,7 @@
                                     <asp:BoundField DataField="IsLocked" HeaderText="Locked" />
                                     <asp:BoundField DataField="Code" HeaderText="Code" />
                                     <asp:BoundField DataField="ImportStatus" HeaderText="Imported Status" Visible="false"/>
+                                    <asp:BoundField DataField="IsoUniqeRevID" HeaderText="IsoUniqeRevID" />
                                     <asp:TemplateField HeaderText="Actions">
     <ItemTemplate>
         <asp:Button ID="btnRemoveFinal" runat="server" Text="Remove" 
@@ -345,6 +308,8 @@
          <asp:BoundField DataField="IsoRevision" HeaderText="Revision" />
          <asp:BoundField DataField="IsLocked" HeaderText="Locked" />
          <asp:BoundField DataField="Code" HeaderText="Code" />
+         <asp:BoundField DataField="IsoUniqeRevID" HeaderText="IsoUniqeRevID" />
+         
          <asp:BoundField DataField="ImportStatus" HeaderText="Imported Status" />
      </Columns>
  </asp:GridView>
@@ -381,9 +346,6 @@
         
     </Columns>
 </asp:GridView>
- <%--<br />
- <asp:Button ID="btnMTOMaintenance" runat="server" Text="MTO File Maintenance" OnClick="btnMTOMaintenance_Click"/><br />
- <br />--%>
                         </asp:Panel>
                     </div>
                 </div>
@@ -427,9 +389,6 @@
          <asp:TemplateField HeaderText="Actions">
     <ItemTemplate>
         <asp:Button ID="btnRemove" runat="server" Text="Actions ?" CommandName="RemoveRow" CommandArgument='<%# Eval("MTOID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>
-         <%--<asp:Button ID="btnUpdateMTO" runat="server" Text="UP MTO" CommandName="RemoveRow" CommandArgument='<%# Eval("MTOID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>
-         <asp:Button ID="btnDeleMTO" runat="server" Text="DelMTO" CommandName="RemoveRow" CommandArgument='<%# Eval("MTOID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>
-         <asp:Button ID="Ignore" runat="server" Text="Ignore" CommandName="RemoveRow" CommandArgument='<%# Eval("MTOID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>--%>
     </ItemTemplate>
 </asp:TemplateField>
      </Columns>

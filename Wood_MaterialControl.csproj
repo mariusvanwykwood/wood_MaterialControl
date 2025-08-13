@@ -218,6 +218,7 @@
     <Content Include="assets\vendor\bootstrap\css\bootstrap.min.css" />
     <Content Include="assets\vendor\bootstrap\js\bootstrap.min.js" />
     <Content Include="assets\vendor\popper\popper.min.js" />
+    <Content Include="FunctionSelect.aspx" />
     <Content Include="DownloadFileHelper.aspx" />
     <Content Include="images\loading.gif" />
     <Content Include="images\woodlogo.png" />
@@ -253,6 +254,7 @@
     <Content Include="images\warningimg.png" />
     <Content Include="images\wood-logo.png" />
     <Content Include="Default.aspx" />
+    <Content Include="ReviewIso.aspx" />
     <Content Include="MainHome.aspx" />
     <None Include="Scripts\jquery-3.6.0.intellisense.js" />
     <Content Include="Scripts\jquery-3.6.0.js" />
@@ -263,6 +265,13 @@
     <Content Include="wood-theme-css\App.css" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FunctionSelect.aspx.cs">
+      <DependentUpon>FunctionSelect.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="FunctionSelect.aspx.designer.cs">
+      <DependentUpon>FunctionSelect.aspx</DependentUpon>
+    </Compile>
     <Compile Include="DownloadFileHelper.aspx.cs">
       <DependentUpon>DownloadFileHelper.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -281,6 +290,13 @@
     </Compile>
     <Compile Include="Default.aspx.designer.cs">
       <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="ReviewIso.aspx.cs">
+      <DependentUpon>ReviewIso.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ReviewIso.aspx.designer.cs">
+      <DependentUpon>ReviewIso.aspx</DependentUpon>
     </Compile>
     <Compile Include="MainHome.aspx.cs">
       <DependentUpon>MainHome.aspx</DependentUpon>
