@@ -689,11 +689,11 @@ ORDER BY LineClass, ShortCode";
                 string query = "";
                 if (All)
                 {
-                    query = "SELECT Distinct [ISO],[ISO]+'- Rev: '+ [IsoRevision] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " and Deleted=0  and IsLocked='True' order by 1";
+                    query = "SELECT Distinct [ISO],[ISO]+'- Rev: '+ [IsoRevision] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " and Deleted=0  and isnull(IsLocked,'False')='True' and (IsoRevisionDate is not null and  IsoRevisionDate<>'') order by 1";
                 }
                 else
                 {
-                    query = "SELECT Distinct [ISO],[ISO]+'- Rev: '+ [IsoRevision] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " and Checked=0 and Deleted=0 and IsLocked='True' order by 1";
+                    query = "SELECT Distinct [ISO],[ISO]+'- Rev: '+ [IsoRevision] FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid + " and Checked=0 and Deleted=0 and isnull(IsLocked,'False')='True' and (IsoRevisionDate is not null and  IsoRevisionDate<>'')  order by 1";
                 }
                 using (cn = new System.Data.SqlClient.SqlConnection(conMat))
                 {
