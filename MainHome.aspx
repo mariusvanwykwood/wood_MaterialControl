@@ -93,7 +93,7 @@
                                 <br /><br />
                                 <asp:Label ID="lbliso" runat="server" Text="Select Iso" AssociatedControlID="ddliso"></asp:Label>
                                 <asp:DropDownListChosen ID="ddliso" runat="server" NoResultsText="No results match." DataPlaceHolder="Search..." AllowSingleDeselect="true" Width="250px"></asp:DropDownListChosen>
-                                <asp:Button ID="btnloadiso" runat="server" OnClick="btnloadiso_Click" Text="Load Iso" /> &nbsp;<asp:Button ID="btnrefreshIso" runat="server" OnClick="btnrefreshIso_Click" Text="Refresh ISO Data" Visible="false" />
+                                <asp:Button ID="btnloadiso" runat="server" OnClick="btnloadiso_Click" Text="Load Iso" /> 
                                 <br /><br />
                                 <asp:Panel ID="pnlExcelUpload" runat="server" Visible="false" style="flex-grow: 1;">
                                     <br />
@@ -182,7 +182,7 @@
 <br />
                         <asp:Panel ID="pnlViewInterimData" runat="server" Visible="false">
                             <asp:Label ID="lblintrim" runat="server" Font-Bold="true" Font-Size="Large" Text="Removing an Item will Remove All for that ISO" ForeColor="Red" />
-                            <asp:GridView ID="gvInterim" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvInterim_RowCommand" DataKeyNames="INTID,MaterialID,ISO">
+                            <asp:GridView ID="gvInterim" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvInterim_RowCommand" DataKeyNames="INTID,MaterialID,ISO,IsoUniqeRevID">
                                 <Columns>
                                     <asp:BoundField DataField="INTID" HeaderText="INTID" Visible="false"/>
                                     <asp:BoundField DataField="MaterialID" HeaderText="MaterialID" Visible="false"/>
@@ -229,7 +229,7 @@
 <asp:Button ID="btnViewFinal" runat="server" Text="Load MTO Export Data" OnClick="btnViewFinal_Click" CssClass="hidden" />
 <br />
                         <asp:Panel ID="pnlFinalMTO" runat="server" Visible="false">
-                            <asp:GridView ID="gvFinal" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvFinal_RowCommand" DataKeyNames="MTOID,ISO" OnRowDataBound="gvFinal_RowDataBound">
+                            <asp:GridView ID="gvFinal" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered" OnRowCommand="gvFinal_RowCommand" DataKeyNames="MTOID,ISO,IsoUniqeRevID" OnRowDataBound="gvFinal_RowDataBound">
                                 <Columns>
                                     <asp:BoundField DataField="MTOID" HeaderText="MTOID" Visible="false"/>
                                     <asp:BoundField DataField="Discipline" HeaderText="Discipline" />

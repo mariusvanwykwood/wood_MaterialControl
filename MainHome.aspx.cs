@@ -1,18 +1,13 @@
-﻿using System;
-using System.Security.Principal;
-using System.Web;
+﻿using ClosedXML.Excel;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web.UI.WebControls;
-using static Wood_MaterialControl.DataClass;
-using ClosedXML.Excel;
 using System.Data;
 using System.IO;
-using DocumentFormat.OpenXml.Drawing.Spreadsheet;
+using System.Linq;
+using System.Web;
 using System.Web.UI;
-using DocumentFormat.OpenXml.Spreadsheet;
-using Org.BouncyCastle.Cms;
-using Irony;
+using System.Web.UI.WebControls;
+using static Wood_MaterialControl.DataClass;
 
 namespace Wood_MaterialControl
 {
@@ -211,6 +206,7 @@ namespace Wood_MaterialControl
             {
                 //Get Data for Iso DLL
                 var projid = ddlprojsel.SelectedValue;
+                Session["ENGPROJECTID"] = projid;
                 List<DDLList> iso = DataClass.GetProjectISO(projid, false);
                 if (iso.Count > 0)
                 {
@@ -253,88 +249,114 @@ namespace Wood_MaterialControl
             Session["LoadedSpecs"] = spec;
             var isosheet = ddliso.SelectedValue;
             var projid = ddlprojsel.SelectedValue;
-            List<SPMATDBData> sptest = DataClass.GetIsoSheetMTOData(isosheet, projid, false);
-            var area = sptest.Select(x => x.Area).Distinct().First().ToString();
-            var disipline = sptest.Select(x => x.Discipline).Distinct().First().ToString();
+            var SelectedISO = ddliso.SelectedItem.Text;
 
-            var distinctSpecslist = spec.GroupBy(s => new { s.Lineclass, s.Ident }).Select(g => g.First()).ToList();
-
-            var griddata = PopulateGridData(sptest, distinctSpecslist).Where(x => x.ISO == isosheet).ToList();
-            var dbdata = griddata.Select(item => new GridData
+            string isorev = "";
+            var match = System.Text.RegularExpressions.Regex.Match(SelectedISO, @"\bRev:\s*([^\s:]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
             {
-                MaterialID = item.MaterialID,
-                ProjectID = item.ProjectID,
-                Discipline = item.Discipline,
-                Area = item.Area,
-                Unit = item.Unit,
-                Phase = item.Phase,
-                Const_Area = item.Const_Area,
-                ISO = item.ISO,
-                Component_Type = item.Component_Type,
-                Spec = item.Spec,
-                Shortcode = item.Shortcode,
-                Ident_no = item.Ident_no,
-                IsoShortDescription = item.IsoShortDescription,
-                Size_sch1 = item.Size_sch1,
-                Size_sch2 = item.Size_sch2,
-                Size_sch3 = item.Size_sch3,
-                Size_sch4 = item.Size_sch4,
-                Size_sch5 = item.Size_sch5,
-                qty = item.qty,
-                qty_unit = item.qty_unit,
-                Fabrication_Type = item.Fabrication_Type,
-                Source = item.Source,
-                IsoRevision = item.IsoRevision,
-                IsoRevisionDate = item.IsoRevisionDate,
-                IsLocked = item.IsLocked,
-                IsoUniqeRevID=item.IsoUniqeRevID
-            }).ToList();
+                isorev = match.Groups[1].Value.Trim(); // e.g., "0", "0.1", "S0", "R0", etc.
+            }
+            List<SPMATDBData> sptest = DataClass.GetIsoSheetMTOData(isosheet, projid, isorev, false);
+            if (sptest == null || sptest.Count <= 0)
+            {
+                sptest = DataClass.GetPreviousIsoSheetMTOData(isosheet, projid, isorev);
+                if (sptest != null && sptest.Count > 0)
+                {
+                    Session["IsPreviousData"] = true;
+                }
+            }
+            if (sptest.Count > 0)
+            {
+                var area = sptest.Select(x => x.Area).Distinct().First().ToString();
+                var disipline = sptest.Select(x => x.Discipline).Distinct().First().ToString();
 
-            List<string> distinctUnits = DataClass.GetUnitsByProject(projid);
-            List<string> distinctPhases = DataClass.GetPhasesByProject(projid);
-            List<string> distinctConstAreas = DataClass.GetConstAreasByProject(projid);
+                var distinctSpecslist = spec.GroupBy(s => new { s.Lineclass, s.Ident }).Select(g => g.First()).ToList();
 
-            List<string> distinctSpecs = DataClass.GetSpecsByProject(projid);
-            List<string> distinctShortCodes = spec.Select(x => x.Shortcode).Distinct().ToList();
-            List<string> distinctIdents = spec.Select(x => x.Ident).Distinct().ToList();
+                var griddata = PopulateGridData(sptest, distinctSpecslist).Where(x => x.ISO == isosheet).ToList();
+                var dbdata = griddata.Select(item => new GridData
+                {
+                    MaterialID = item.MaterialID,
+                    ProjectID = item.ProjectID,
+                    Discipline = item.Discipline,
+                    Area = item.Area,
+                    Unit = item.Unit,
+                    Phase = item.Phase,
+                    Const_Area = item.Const_Area,
+                    ISO = item.ISO,
+                    Component_Type = item.Component_Type,
+                    Spec = item.Spec,
+                    Shortcode = item.Shortcode,
+                    Ident_no = item.Ident_no,
+                    IsoShortDescription = item.IsoShortDescription,
+                    Size_sch1 = item.Size_sch1,
+                    Size_sch2 = item.Size_sch2,
+                    Size_sch3 = item.Size_sch3,
+                    Size_sch4 = item.Size_sch4,
+                    Size_sch5 = item.Size_sch5,
+                    qty = item.qty,
+                    qty_unit = item.qty_unit,
+                    Fabrication_Type = item.Fabrication_Type,
+                    Source = item.Source,
+                    IsoRevision = item.IsoRevision,
+                    IsoRevisionDate = item.IsoRevisionDate,
+                    IsLocked = item.IsLocked,
+                    IsoUniqeRevID = item.IsoUniqeRevID
+                }).ToList();
 
-            // Spec → Shortcodes
-            var specShortcodeMap = spec.GroupBy(x => x.Lineclass).ToDictionary(g => g.Key, g => g.Select(x => x.Shortcode).Distinct().ToList());
+                List<string> distinctUnits = DataClass.GetUnitsByProject(projid);
+                List<string> distinctPhases = DataClass.GetPhasesByProject(projid);
+                List<string> distinctConstAreas = DataClass.GetConstAreasByProject(projid);
 
-            // Shortcode → Idents
-            //Dictionary<string, Dictionary<string, List<string>>>
-            var shortCodeIdentMap = spec.GroupBy(x => x.Lineclass).ToDictionary(g => g.Key, g => g.GroupBy(s => s.Shortcode).ToDictionary(sg => sg.Key, sg => sg.Select(s => s.Ident).Distinct().ToList()));
+                List<string> distinctSpecs = DataClass.GetSpecsByProject(projid);
+                List<string> distinctShortCodes = spec.Select(x => x.Shortcode).Distinct().ToList();
+                List<string> distinctIdents = spec.Select(x => x.Ident).Distinct().ToList();
 
-            // Optionally: store combinations for cascading logic
-            var unitPhaseMap = DataClass.GetUnitPhaseMap(projid);
+                // Spec → Shortcodes
+                var specShortcodeMap = spec.GroupBy(x => x.Lineclass).ToDictionary(g => g.Key, g => g.Select(x => x.Shortcode).Distinct().ToList());
 
-            var unitConstAreaMap = DataClass.GetUnitPhaseConstAreaMap(projid);
-            Session["GridData"] = griddata;
-            Session["OriginalDBData"] = dbdata;
-            Session["CurrentIso"] = isosheet;
-            Session["CurrentArea"] = area;
-            Session["CurrentDisipline"] = disipline;
-            Session["Units"] = distinctUnits;
-            Session["Phases"] = distinctPhases;
-            Session["ConstAreas"] = distinctConstAreas;
-            Session["UnitPhaseMap"] = unitPhaseMap;
-            Session["UnitConstAreaMap"] = unitConstAreaMap;
-            Session["Specs"] = distinctSpecs;
-            Session["ShortCodes"] = distinctShortCodes;
-            Session["Idents"] = distinctIdents;
-            Session["SpecShortCodeMap"] = specShortcodeMap;
-            Session["ShortCodeIdentMap"] = shortCodeIdentMap;
+                // Shortcode → Idents
+                //Dictionary<string, Dictionary<string, List<string>>>
+                var shortCodeIdentMap = spec.GroupBy(x => x.Lineclass).ToDictionary(g => g.Key, g => g.GroupBy(s => s.Shortcode).ToDictionary(sg => sg.Key, sg => sg.Select(s => s.Ident).Distinct().ToList()));
 
-            HttpContext.Current.Items["Units"] = distinctUnits;
-            HttpContext.Current.Items["Phases"] = distinctPhases;
-            HttpContext.Current.Items["ConstAreas"] = distinctConstAreas;
-            HttpContext.Current.Items["Specs"] = distinctSpecs;
-            HttpContext.Current.Items["ShortCodes"] = distinctShortCodes;
-            HttpContext.Current.Items["Idents"] = distinctIdents;
+                // Optionally: store combinations for cascading logic
+                var unitPhaseMap = DataClass.GetUnitPhaseMap(projid);
 
-            BindExcelGridView(griddata, area, isosheet, bindData: true);
-            btnSubmit.Style["display"] = "block";
-            btnAddNew.Style["display"] = "block";
+                var unitConstAreaMap = DataClass.GetUnitPhaseConstAreaMap(projid);
+                Session["GridData"] = griddata;
+                Session["OriginalDBData"] = dbdata;
+                Session["CurrentIso"] = isosheet;
+                Session["CurrentArea"] = area;
+                Session["CurrentDisipline"] = disipline;
+                Session["Units"] = distinctUnits;
+                Session["Phases"] = distinctPhases;
+                Session["ConstAreas"] = distinctConstAreas;
+                Session["UnitPhaseMap"] = unitPhaseMap;
+                Session["UnitConstAreaMap"] = unitConstAreaMap;
+                Session["Specs"] = distinctSpecs;
+                Session["ShortCodes"] = distinctShortCodes;
+                Session["Idents"] = distinctIdents;
+                Session["SpecShortCodeMap"] = specShortcodeMap;
+                Session["ShortCodeIdentMap"] = shortCodeIdentMap;
+
+                HttpContext.Current.Items["Units"] = distinctUnits;
+                HttpContext.Current.Items["Phases"] = distinctPhases;
+                HttpContext.Current.Items["ConstAreas"] = distinctConstAreas;
+                HttpContext.Current.Items["Specs"] = distinctSpecs;
+                HttpContext.Current.Items["ShortCodes"] = distinctShortCodes;
+                HttpContext.Current.Items["Idents"] = distinctIdents;
+
+                BindExcelGridView(griddata, area, isosheet, bindData: true);
+                btnSubmit.Style["display"] = "block";
+                btnAddNew.Style["display"] = "block";
+            }
+            else
+            {
+                diverror.Style["display"] = "block";
+                lblerror.Text = "No Current or Previous data found for the selected ISO.";
+                lblerror.ForeColor = System.Drawing.Color.Red;
+                return;
+            }
         }
 
         private void ClearSession()
@@ -389,7 +411,7 @@ namespace Wood_MaterialControl
                                     IsoRevision = spmat.IsoRevision,
                                     IsoRevisionDate = spmat.IsoRevisionDate,
                                     IsLocked = spmat.Lock,
-                                    IsoUniqeRevID=spmat.IsoUniqeRevID
+                                    IsoUniqeRevID = spmat.IsoUniqeRevID
 
                                 }).ToList();
 
@@ -500,7 +522,7 @@ namespace Wood_MaterialControl
                     IsoRevision = row["IsoRevision"]?.ToString(),
                     IsLocked = row["IsLocked"]?.ToString(),
                     IsoUniqeRevID = Convert.ToInt32(row["IsoUniqeRevID"].ToString())
-                    
+
                 };
 
                 list.Add(item);
@@ -634,11 +656,11 @@ namespace Wood_MaterialControl
                         qty_unit = qtyUnit,
                         Fabrication_Type = havediffs ? "Undefined" : orgdbdata?.Fabrication_Type,
                         Spec = havediffs ? selectedSpec : orgdbdata?.Spec,
-                        IsoRevision = !String.IsNullOrEmpty(isorev) ?isorev : orgdbdata?.IsoRevision,
+                        IsoRevision = !String.IsNullOrEmpty(isorev) ? isorev : orgdbdata?.IsoRevision,
                         IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
                         Lock = havediffs ? "" : orgdbdata?.IsLocked,
                         Code = havediffs ? "M" : orgdbdata?.Source,
-                        IsoUniqeRevID=orgdbdata.IsoUniqeRevID
+                        IsoUniqeRevID = orgdbdata.IsoUniqeRevID
                     };
                     if (orgToSPMAT != null && updatedCompare != null)
                     {
@@ -663,7 +685,7 @@ namespace Wood_MaterialControl
                         IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
                         Lock = havediffs ? "" : orgdbdata?.IsLocked,
                         Code = havediffs ? "M" : orgdbdata?.Source,
-                        IsoUniqeRevID=orgdbdata.IsoUniqeRevID
+                        IsoUniqeRevID = orgdbdata.IsoUniqeRevID
                     };
                     updatedItems.Add(updated);
 
@@ -683,9 +705,11 @@ namespace Wood_MaterialControl
             }
 
             // Update database
+            bool IsPreviousData = bool.TryParse(Session["IsPreviousData"]?.ToString(), out var result) && result;
+
             foreach (var item in updatedItems)
             {
-                DataClass.FinalizeMaterialUpdate(item);
+                DataClass.FinalizeMaterialUpdate(item, IsPreviousData);
             }
 
             lblMessage.ForeColor = System.Drawing.Color.Green;
@@ -1419,14 +1443,14 @@ namespace Wood_MaterialControl
             GridViewRow row = (GridViewRow)txt.NamingContainer;
             int materialID = Convert.ToInt32(ExcelGridView.DataKeys[row.RowIndex].Value);
             var griddata = Session["GridData"] as List<GridData>;
-            var itemToUpdate= new GridData();
+            var itemToUpdate = new GridData();
             if (griddata != null)
             {
                 itemToUpdate = griddata.FirstOrDefault(g => g.MaterialID == materialID);
             }
 
-                // Get the linked ddlShortcode
-                DropDownList ddlShortcode = (DropDownList)row.FindControl("ddlShortcode");
+            // Get the linked ddlShortcode
+            DropDownList ddlShortcode = (DropDownList)row.FindControl("ddlShortcode");
             string selectedShortcode = ddlShortcode?.SelectedValue;
 
             string inputQty = txt.Text.Trim();
@@ -1463,14 +1487,13 @@ namespace Wood_MaterialControl
             {
                 list.Add(new Dictionary<int, string> { { materialID, inputQty } });
             }
-            if(itemToUpdate!=null && itemToUpdate.MaterialID==materialID)
+            if (itemToUpdate != null && itemToUpdate.MaterialID == materialID)
             {
                 itemToUpdate.qty = inputQty;
                 Session["GridData"] = griddata;
             }
             Session["ChangedText"] = list;
         }
-
         protected void ddlUnit_SelectedIndexChanged(object sender, EventArgs e)
         {
             DropDownList ddlUnit = (DropDownList)sender;
@@ -1556,7 +1579,6 @@ namespace Wood_MaterialControl
             Session["rowindex"] = row.RowIndex;
 
         }
-
         private void ddlPhase_SelectedIndexChanged(object sender, EventArgs e)
         {
             var ddl = (DropDownList)sender;
@@ -1593,8 +1615,6 @@ namespace Wood_MaterialControl
             Session["ChangedConstAreas"] = changedConstAreasList;
             Session["rowindex"] = row.RowIndex;
         }
-
-
         private void SetLabelText(GridViewRow row, string controlId, string text)
         {
             var label = row.FindControl(controlId) as System.Web.UI.WebControls.Label;
@@ -1603,8 +1623,6 @@ namespace Wood_MaterialControl
                 label.Text = text;
             }
         }
-
-
         #region Add Form
         protected void btnAddNew_Click(object sender, EventArgs e)
         {
@@ -1746,11 +1764,11 @@ namespace Wood_MaterialControl
                 qty_unit = qtyUnit,
                 Fabrication_Type = "Undefined",
                 Spec = ddlAddSpec.SelectedValue,
-                IsoRevision = string.IsNullOrEmpty(isorev)?"":isorev,
+                IsoRevision = string.IsNullOrEmpty(isorev) ? "" : isorev,
                 IsoRevisionDate = "",
                 Lock = "",
                 Code = "M",
-                IsoUniqeRevID=0
+                IsoUniqeRevID = 0
             };
 
             // Use PopulateGridData to enrich the entry
@@ -1777,7 +1795,7 @@ namespace Wood_MaterialControl
                     IsoRevision = newItem.IsoRevision,
                     Lock = newItem.IsLocked,
                     Code = newItem.Source,
-                    IsoUniqeRevID=newItem.IsoUniqeRevID
+                    IsoUniqeRevID = newItem.IsoUniqeRevID
                 });
 
                 griddata.Add(newItem);
@@ -1860,7 +1878,6 @@ namespace Wood_MaterialControl
         }
 
         #endregion
-
         //protected void btnviewspmat_Click(object sender, EventArgs e)
         //{
         //    diverror.Style["display"] = "none";
@@ -1924,7 +1941,6 @@ namespace Wood_MaterialControl
 
 
         }
-
         private void MoveToIntrim(List<SPMATDBData> data, List<int> materialIDs)
         {
             foreach (SPMATDBData s in data)
@@ -1932,7 +1948,6 @@ namespace Wood_MaterialControl
                 DataClass.MoveToIntrim(s);
             }
         }
-
         protected void ddlAddIdent_SelectedIndexChanged(object sender, EventArgs e)
         {
             string selectedSpec = ddlAddSpec.SelectedValue;
@@ -1960,13 +1975,10 @@ namespace Wood_MaterialControl
             }
 
         }
-
-
         //private int SaveExportMetadata(string fileName, List<int> MTOIDs)
         //{
         //    return DataClass.SaveExportRecord(fileName, MTOIDs);
         //}
-
         protected void btnMoveToFinal_Click(object sender, EventArgs e)
         {
             diverror.Style["display"] = "none";
@@ -1997,9 +2009,10 @@ namespace Wood_MaterialControl
 
         private void MoveToFinal(List<SPMATIntrimData> data)
         {
+            bool IsPreviousData = bool.TryParse(Session["IsPreviousData"]?.ToString(), out var result) && result;
             foreach (SPMATIntrimData s in data)
             {
-                DataClass.MoveToFinal(s);
+                DataClass.MoveToFinal(s, IsPreviousData);
             }
             var Projid = ddlprojsel.SelectedValue;
             List<SPMATIntrimData> mtoData = DataClass.GetMTOIntrimData(Projid);
@@ -2083,11 +2096,12 @@ namespace Wood_MaterialControl
                 string INTID = keys["INTID"].ToString();
                 string MaterialID = keys["MaterialID"].ToString();
                 string ISO = keys["ISO"].ToString();
+                int Uniquerev = int.Parse(keys["IsoUniqeRevID"].ToString());
 
                 // Refactored: Use DataClass methods instead of inline SQL
                 DataClass.DeleteMTOEntry(ISO);
-                DataClass.UncheckREQEntry(ISO);
-
+                DataClass.UncheckREQEntry(ISO, Uniquerev);
+                Session["IsPreviousData"] = null;
                 ReloadIso();
                 // Refresh the grid
                 //btnviewInterim_Click(null, null);
@@ -2151,7 +2165,7 @@ namespace Wood_MaterialControl
             List<SPMATData> datacurrent = Session["SPMATFinalData"] as List<SPMATData>;
             var Projid = ddlprojsel.SelectedValue;
             List<SPMATData> mtoData = DataClass.GetMTOData(Projid, true);
-            
+
             if (mtoData.Where(x => x.ImportStatus.ToLower().Trim() == "not imported").Any())
             {
                 diverror.Style["display"] = "block";
@@ -2168,14 +2182,14 @@ namespace Wood_MaterialControl
             }
             List<int> MTOIDs = datacurrent.Select(d => d.MTOID).Distinct().ToList();
             int FileID = DataClass.InsertExportRecord(Projid, MTOIDs); // returns the new FileExport ID
-           // List<int> OtherFiles = DataClass.GetOtherFileIDs(Projid); // All existing files
+                                                                       // List<int> OtherFiles = DataClass.GetOtherFileIDs(Projid); // All existing files
 
-           // List<int> mtoIDsToDelete = DataClass.GetMTOIDsToDelete(Projid, MTOIDs, OtherFiles);
+            // List<int> mtoIDsToDelete = DataClass.GetMTOIDsToDelete(Projid, MTOIDs, OtherFiles);
             List<(int MaterialID, int MTOID)> itemsToDelete = DataClass.GetObsoleteMTOs(Projid);
 
             datacurrent.AddRange(mtoData);
             List<SPMATData> data = datacurrent.Where(d => !itemsToDelete.Any(del => del.MTOID == d.MTOID)).ToList();
-            
+
             ClosedXML.Excel.XLWorkbook workbook = new ClosedXML.Excel.XLWorkbook();
 
             IXLWorksheet worksheet = workbook.Worksheets.Add("SPMAT_Export");
@@ -2257,7 +2271,7 @@ namespace Wood_MaterialControl
                     }
                 }
                 catch { }
-                DataClass.SaveExportRecordFile(FileID,efile.filedata);
+                DataClass.SaveExportRecordFile(FileID, efile.filedata);
                 Session.Add(FileName, efile);
                 btnSaveFile.CssClass = "shown";
                 btnSaveFile.ToolTip = FileName;
@@ -2324,11 +2338,18 @@ namespace Wood_MaterialControl
                         return;
                     }
                     pnlExcelUpload.Style["display"] = "block";
-                    var spec = Session["LoadedSpecs"] !=null ? (List<SpecData>)Session["LoadedSpecs"] : DataClass.LoadSpectDataFromDB(ddlprojects.SelectedValue.ToString().Trim());
+                    var spec = Session["LoadedSpecs"] != null ? (List<SpecData>)Session["LoadedSpecs"] : DataClass.LoadSpectDataFromDB(ddlprojects.SelectedValue.ToString().Trim());
                     //Session["LoadedSpecs"] = spec;
                     var isosheet = ddliso.SelectedValue;
                     var projid = ddlprojsel.SelectedValue;
-                    List<SPMATDBData> sptest = DataClass.GetIsoSheetMTOData(isosheet, projid, false);
+                    var SelectedISO = ddliso.SelectedItem.Text;
+                    string isorev = "";
+                    var match = System.Text.RegularExpressions.Regex.Match(SelectedISO, @"\bRev:\s*([^\s:]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        isorev = match.Groups[1].Value.Trim(); // e.g., "0", "0.1", "S0", "R0", etc.
+                    }
+                    List<SPMATDBData> sptest = DataClass.GetIsoSheetMTOData(isosheet, projid, isorev, false);
                     var area = "";
                     var disipline = "";
                     if (sptest.Count > 0)
@@ -2337,8 +2358,8 @@ namespace Wood_MaterialControl
                         disipline = sptest.Select(x => x.Discipline).Distinct().First().ToString();
                     }
                     var distinctSpecslist = spec.GroupBy(s => new { s.Lineclass, s.Ident }).Select(g => g.First()).ToList();
-                    
-                    var griddata = Session["GridData"] !=null ? (List<GridData>)Session["GridData"] : PopulateGridData(sptest, distinctSpecslist).Where(x => x.ISO == isosheet).ToList();
+
+                    var griddata = Session["GridData"] != null ? (List<GridData>)Session["GridData"] : PopulateGridData(sptest, distinctSpecslist).Where(x => x.ISO == isosheet).ToList();
                     var orgdbdata = (List<GridData>)Session["OriginalDBData"];
                     List<string> distinctUnits = DataClass.GetUnitsByProject(projid);
                     List<string> distinctPhases = DataClass.GetPhasesByProject(projid);
@@ -2420,7 +2441,7 @@ namespace Wood_MaterialControl
                         ReloadIso();
                     }
 
-                      
+
                     break;
                 //case "btnviewspmat":
                 //    List<SPMATDBData> mtoData3 = DataClass.GetWorkingMTOData(Projid);
@@ -2557,7 +2578,8 @@ namespace Wood_MaterialControl
                 {
                     // TODO: Update the database with the import code and mark FileCompleted = true
                     // Example:
-                    DataClass.UpdateSPMAT_FileExports(fileId, fileMTOIDs, importCode);
+                    var projid = Session["ENGPROJECTID"].ToString();
+                    DataClass.UpdateSPMAT_FileExports(fileId, fileMTOIDs, importCode, int.Parse(projid));
                     // Rebind the GridView after update
                     //btnViewFinal_Click(null, null);
                     //btnViewExported_Click(null,null);
@@ -2658,41 +2680,41 @@ namespace Wood_MaterialControl
             return fs;
         }
 
-        protected void btnrefreshIso_Click(object sender, EventArgs e)
-        {
-            diverror.Style["display"] = "none";
-            lblerror.Text = "";
-            var Projid = ddlprojsel.SelectedValue;
-            var spec = DataClass.LoadSpectDataFromDB(ddlprojects.SelectedValue.ToString().Trim());
-            string isoaccesspath = DataClass.GetIsoAccess(Projid);
-            var IsoData = DataClass.GetIsoData(isoaccesspath);
-            foreach (var i in IsoData)
-            {
-                DataClass.RefreshISO(i);
-            }
-            var projid = ddlprojsel.SelectedValue;
-            List<DDLList> iso = DataClass.GetProjectISO(projid, false);
-            if (iso.Count > 0)
-            {
-                ddliso.DataSource = iso;
-                ddliso.DataTextField = "DDLListName";
-                ddliso.DataValueField = "DDLList_ID";
-                ddliso.DataBind();
-                // btnviewspmat.CssClass = "shown";
-                btnviewInterim.CssClass = "shown";
-                btnViewFinal.CssClass = "shown";
-                diverror.Style["display"] = "block";
-                lblerror.Text = "Iso Data Refreshed.";
-                lblerror.ForeColor = System.Drawing.Color.Blue;
-            }
-            else
-            {
-                diverror.Style["display"] = "block";
-                lblerror.Text = "No Iso in correct state.";
-                lblerror.ForeColor = System.Drawing.Color.Red;
-                return;
-            }
-        }
+        //protected void btnrefreshIso_Click(object sender, EventArgs e)
+        //{
+        //    diverror.Style["display"] = "none";
+        //    lblerror.Text = "";
+        //    var Projid = ddlprojsel.SelectedValue;
+        //    var spec = DataClass.LoadSpectDataFromDB(ddlprojects.SelectedValue.ToString().Trim());
+        //    string isoaccesspath = DataClass.GetIsoAccess(Projid);
+        //    var IsoData = DataClass.GetIsoData(isoaccesspath);
+        //    foreach (var i in IsoData)
+        //    {
+        //        DataClass.RefreshISO(i);
+        //    }
+        //    var projid = ddlprojsel.SelectedValue;
+        //    List<DDLList> iso = DataClass.GetProjectISO(projid, false);
+        //    if (iso.Count > 0)
+        //    {
+        //        ddliso.DataSource = iso;
+        //        ddliso.DataTextField = "DDLListName";
+        //        ddliso.DataValueField = "DDLList_ID";
+        //        ddliso.DataBind();
+        //        // btnviewspmat.CssClass = "shown";
+        //        btnviewInterim.CssClass = "shown";
+        //        btnViewFinal.CssClass = "shown";
+        //        diverror.Style["display"] = "block";
+        //        lblerror.Text = "Iso Data Refreshed.";
+        //        lblerror.ForeColor = System.Drawing.Color.Blue;
+        //    }
+        //    else
+        //    {
+        //        diverror.Style["display"] = "block";
+        //        lblerror.Text = "No Iso in correct state.";
+        //        lblerror.ForeColor = System.Drawing.Color.Red;
+        //        return;
+        //    }
+        //}
 
         protected void gvFinal_RowDataBound(object sender, GridViewRowEventArgs e)
         {
@@ -2729,7 +2751,8 @@ namespace Wood_MaterialControl
                 var keys = gvFinal.DataKeys[row.RowIndex];
                 string MTOID = keys["MTOID"].ToString();
                 string ISO = keys["ISO"].ToString();
-                DataClass.RemoveFromFinal(MTOID, ISO);
+                int IsoUniqeRevID = int.Parse(keys["IsoUniqeRevID"].ToString());
+                DataClass.RemoveFromFinal(MTOID, ISO, IsoUniqeRevID);
 
                 ReloadIso();
                 // Refresh the grid
@@ -2782,7 +2805,6 @@ namespace Wood_MaterialControl
             }
         }
 
-
         private void PopulateIsoDropdown(string selectedValue = "")
         {
             if (gvExported.HeaderRow != null)
@@ -2832,7 +2854,7 @@ namespace Wood_MaterialControl
 
         protected void btnExportFiltered_Click(object sender, EventArgs e)
         {
-            var filteredData = (List<SPMATData>) Session["CurrentFiltered"]; // Or use filtered list if stored separately
+            var filteredData = (List<SPMATData>)Session["CurrentFiltered"]; // Or use filtered list if stored separately
             var filtername = string.IsNullOrEmpty(Session["SelectedFilter"].ToString()) ? "" : Session["SelectedFilter"].ToString();
             if (filteredData == null || !filteredData.Any())
                 return;
@@ -2841,8 +2863,8 @@ namespace Wood_MaterialControl
             string sheetname = "MTOData";
             if (!string.IsNullOrEmpty(filtername))
             {
-                FileName = "Filtered_"+FileName + "_" + filtername;
-                sheetname += "_"+filtername;
+                FileName = "Filtered_" + FileName + "_" + filtername;
+                sheetname += "_" + filtername;
             }
             FileName += "_" + DateTime.Now.ToString("yyMMddHHmmss") + ".xlsx";
             // Convert to DataTable
@@ -2859,7 +2881,7 @@ namespace Wood_MaterialControl
 
                     Response.Clear();
                     Response.Buffer = true;
-                    Response.AddHeader("content-disposition", "attachment; filename="+FileName);
+                    Response.AddHeader("content-disposition", "attachment; filename=" + FileName);
                     Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
                     Response.BinaryWrite(stream.ToArray());
                     Response.Flush();
