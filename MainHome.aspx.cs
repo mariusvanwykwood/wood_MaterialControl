@@ -147,8 +147,13 @@ namespace Wood_MaterialControl
                 var griddata = Session["GridData"] as List<GridData> ?? new List<GridData>();
                 if (griddata.Where(x => x.MaterialID == materialID).Any())
                 {
-                    var itemToremove = griddata.SingleOrDefault(x => x.MaterialID == materialID);
-                    griddata.Remove(itemToremove);
+                    var itemToremove = griddata.FirstOrDefault(x => x.MaterialID == materialID);
+
+                    if (itemToremove != null)
+                    {
+                        griddata.Remove(itemToremove);
+                    }
+
                 }
                 Session["GridData"] = griddata;
                 // Mark as Checked in DB
@@ -2579,7 +2584,14 @@ namespace Wood_MaterialControl
                     // TODO: Update the database with the import code and mark FileCompleted = true
                     // Example:
                     var projid = Session["ENGPROJECTID"].ToString();
-                    DataClass.UpdateSPMAT_FileExports(fileId, fileMTOIDs, importCode, int.Parse(projid));
+                   var ue= DataClass.UpdateSPMAT_FileExports(fileId, fileMTOIDs, importCode, int.Parse(projid));
+                    if (!string.IsNullOrEmpty(ue))
+                    {
+                        diverror.Style["display"] = "block";
+                        lblerror.Text = "Error on Updating Data: "+ue.Trim();
+                        lblerror.ForeColor = System.Drawing.Color.Red;
+                        return;
+                    }
                     // Rebind the GridView after update
                     //btnViewFinal_Click(null, null);
                     //btnViewExported_Click(null,null);

@@ -687,7 +687,11 @@ ORDER BY LineClass, ShortCode";
             {
                 try
                 {
-                    string query = @"WITH RankedIsoData AS (
+                    string query = @"drop table if exists #tmpmto
+
+Select Distinct ISO,IsoUniqeRevID,Imported into #tmpmto from SPMAT_MTOData where ProjectID=@projid and Imported=0;
+
+WITH RankedIsoData AS (
     SELECT 
         [Drawing_Number],
         [Revision],
@@ -701,22 +705,12 @@ ORDER BY LineClass, ShortCode";
         ProjectID = @projid AND 
         IsProcessed = 0 AND 
         ISNULL(IsoLock, 'False') = 'True' AND 
-        LTRIM(RTRIM([RevisionDate])) <> '' AND 
-      NOT EXISTS (
-    SELECT 1 
-    FROM SPMAT_MTOData m
-    WHERE 
-        m.ProjectID = @projid AND 
-        (
-            m.Imported = 0 OR 
-            (m.ISO = h.Drawing_Number AND m.IsoUniqeRevID = h.IsoUniqeRevID))
-		)
-)
+        LTRIM(RTRIM([RevisionDate])) <> '')
 SELECT 
     [Drawing_Number] AS [ISO],
     [Drawing_Number] + '- Rev: ' + CAST([Revision] AS VARCHAR) AS [DisplayText]
 FROM RankedIsoData
-WHERE rn = 1
+WHERE rn = 1 and IsoUniqeRevID not in( select distinct IsoUniqeRevID from #tmpmto)
 ORDER BY [Drawing_Number];";
 
                     using (SqlCommand cmd = new SqlCommand(query, cn))
@@ -1396,16 +1390,37 @@ ORDER BY [Drawing_Number];";
             return mtodata;
         }
 
+        //public static void MarkMaterialAsChecked(int materialID)
+        //{
+        //    using (var cn = new SqlConnection(conMat))
+        //    {
+        //        cn.Open();
+        //        var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1, Deleted=1 WHERE [MaterialID] = @MaterialID", cn);
+        //        cmd.Parameters.AddWithValue("@MaterialID", materialID);
+        //        cmd.ExecuteNonQuery();
+        //    }
+        //}
         public static void MarkMaterialAsChecked(int materialID)
         {
             using (var cn = new SqlConnection(conMat))
             {
                 cn.Open();
-                var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData] SET [Checked] = 1, Deleted=1 WHERE [MaterialID] = @MaterialID", cn);
+                var cmd = new SqlCommand(@"
+            WITH CTE AS (
+                SELECT TOP(1) *
+                FROM [dbo].[SPMAT_REQData]
+                WHERE [MaterialID] = @MaterialID
+                ORDER BY IsoRevisionDate DESC -- or any column to control which one is updated
+            )
+            UPDATE CTE
+            SET [Checked] = 1, [Deleted] = 1;
+        ", cn);
+
                 cmd.Parameters.AddWithValue("@MaterialID", materialID);
                 cmd.ExecuteNonQuery();
             }
         }
+
         public static void MarkTempMaterialAsChecked(int materialID)
         {
             using (var cn = new SqlConnection(conMat))
@@ -1674,7 +1689,7 @@ END";
                 string markDeletedQuery = @"
             UPDATE [dbo].[SPMAT_MTOData]
             SET IsDeleted = 1
-            WHERE MaterialID = @MaterialID and IsoUniqeRevID=@IsoUniqeRevID";
+            WHERE MaterialID = @MaterialID and IsoUniqeRevID<=@IsoUniqeRevID";
 
                 using (SqlCommand markDeletedCmd = new SqlCommand(markDeletedQuery, conn))
                 {
@@ -1800,43 +1815,46 @@ END";
             return filedata;
         }
 
-        internal static void UpdateSPMAT_FileExports(int fileId, string fileMTOIDs, string importCode,int projectid)
+        internal static string UpdateSPMAT_FileExports(int fileId, string fileMTOIDs, string importCode,int projectid)
         {
-            string ids = fileMTOIDs;
-            int FileID = fileId;
-            var IsoUnique = 0;
-            var Iso = "";
-            using (SqlConnection conn = new SqlConnection(conMat))
+            string error = "";
+            try
             {
-                conn.Open();
-
-                // Insert into SPMAT_FIleExports
-                string fileQuery = @"
-            Update SPMAT_FileExports Set [FileCompleted]=1 where [FinalFileID]=@FileID";
-                using (SqlCommand fileCmd = new SqlCommand(fileQuery, conn))
+                string ids = fileMTOIDs;
+                int FileID = fileId;
+                var IsoUnique = 0;
+                var Iso = "";
+                using (SqlConnection conn = new SqlConnection(conMat))
                 {
-                    fileCmd.Parameters.AddWithValue("@FileID", FileID);
-                    fileCmd.ExecuteNonQuery();
-                }
+                    conn.Open();
 
-                // Update SPMAT_IntrimData
-                string updateQuery = $@"
+                    // Insert into SPMAT_FIleExports
+                    string fileQuery = @"
+            Update SPMAT_FileExports Set [FileCompleted]=1 where [FinalFileID]=@FileID";
+                    using (SqlCommand fileCmd = new SqlCommand(fileQuery, conn))
+                    {
+                        fileCmd.Parameters.AddWithValue("@FileID", FileID);
+                        fileCmd.ExecuteNonQuery();
+                    }
+
+                    // Update SPMAT_IntrimData
+                    string updateQuery = $@"
             UPDATE SPMAT_MTOData
                         SET Imported = 1,
                             ImportedDate = GETDATE(),
                             ImportedStatus = @Status
                         WHERE MTOID IN ({ids})";
-                using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
-                {
-                    updateCmd.Parameters.AddWithValue("@Status", importCode);
-                    updateCmd.ExecuteNonQuery();
-                }
-                // 3. Process each MaterialID
-                foreach (string id in ids.Split(','))
-                {
-                    if (int.TryParse(id.Trim(), out int materialID))
+                    using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
                     {
-                        string holdingSelectQuery = @"
+                        updateCmd.Parameters.AddWithValue("@Status", importCode);
+                        updateCmd.ExecuteNonQuery();
+                    }
+                    // 3. Process each MaterialID
+                    foreach (string id in ids.Split(','))
+                    {
+                        if (int.TryParse(id.Trim(), out int materialID))
+                        {
+                            string holdingSelectQuery = @"
                     UPDATE [dbo].[IsoDataHistory] 
                     set IsProcessed=1 
                     where 
@@ -1848,65 +1866,65 @@ END";
                     FROM SPMAT_REQData_Holding
                     WHERE MaterialID = @MaterialID
                     ORDER BY IsoUniqeRevID ASC, InsertedDate ASC";
-                        string allholdingQuery = " SELECT TOP 1 ISO,IsoUniqeRevID FROM SPMAT_REQData_Holding WHERE MaterialID = @MaterialID ORDER BY IsoUniqeRevID ASC, InsertedDate ASC";
-                        using (SqlCommand holdselectCmd = new SqlCommand(allholdingQuery, conn))
-                        {
-                            holdselectCmd.Parameters.AddWithValue("@MaterialID", materialID);
-                            using (SqlDataReader reader = holdselectCmd.ExecuteReader())
+                            string allholdingQuery = " SELECT TOP 1 ISO,IsoUniqeRevID FROM SPMAT_REQData_Holding WHERE MaterialID = @MaterialID ORDER BY IsoUniqeRevID ASC, InsertedDate ASC";
+                            using (SqlCommand holdselectCmd = new SqlCommand(allholdingQuery, conn))
                             {
-                                if (reader.Read())
+                                holdselectCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                using (SqlDataReader reader = holdselectCmd.ExecuteReader())
                                 {
-                                    Iso=reader.GetString(0);
-                                    IsoUnique = Convert.ToInt32(reader[1]);
-                                    
+                                    if (reader.Read())
+                                    {
+                                        Iso = reader.GetString(0);
+                                        IsoUnique = Convert.ToInt32(reader[1]);
+
+                                    }
+                                    reader.Close();
                                 }
-                                reader.Close();
                             }
-                        }
-                        string selectMatchingQuery = @"
+                            string selectMatchingQuery = @"
     SELECT HoldingID, MaterialID, IsoUniqeRevID  
     FROM [dbo].[SPMAT_REQData_Holding] 
     WHERE ISO = @Iso AND IsoUniqeRevID = @IsoUnique";
 
-                        using (SqlCommand selectCmdAll = new SqlCommand(selectMatchingQuery, conn))
-                        {
-                            selectCmdAll.Parameters.Add("@Iso", SqlDbType.VarChar).Value = Iso;
-                            selectCmdAll.Parameters.Add("@IsoUnique", SqlDbType.Int).Value = IsoUnique;
-
-                            using (SqlDataReader reader = selectCmdAll.ExecuteReader())
+                            using (SqlCommand selectCmdAll = new SqlCommand(selectMatchingQuery, conn))
                             {
-                                while (reader.Read())
-                                {
-                                    int holdingIDh = reader.GetInt32(0);
-                                    int materialIDh = reader.GetInt32(1);
-                                    int isoUniquerevh = reader.GetInt32(2);
+                                selectCmdAll.Parameters.Add("@Iso", SqlDbType.VarChar).Value = Iso;
+                                selectCmdAll.Parameters.Add("@IsoUnique", SqlDbType.Int).Value = IsoUnique;
 
-                                    // Call stored procedure
-                                    using (SqlCommand spCmd = new SqlCommand("UpdateHolding", conn))
+                                using (SqlDataReader reader = selectCmdAll.ExecuteReader())
+                                {
+                                    while (reader.Read())
                                     {
-                                        spCmd.CommandType = CommandType.StoredProcedure;
-                                        spCmd.Parameters.Add("@MaterialID", SqlDbType.Int).Value = materialIDh;
-                                        spCmd.Parameters.Add("@IsoHoldingID", SqlDbType.Int).Value = holdingIDh;
-                                        spCmd.Parameters.Add("@IsoUniqurev", SqlDbType.Int).Value = isoUniquerevh;
+                                        int holdingIDh = reader.GetInt32(0);
+                                        int materialIDh = reader.GetInt32(1);
+                                        int isoUniquerevh = reader.GetInt32(2);
 
-                                        spCmd.ExecuteNonQuery();
+                                        // Call stored procedure
+                                        using (SqlCommand spCmd = new SqlCommand("UpdateHolding", conn))
+                                        {
+                                            spCmd.CommandType = CommandType.StoredProcedure;
+                                            spCmd.Parameters.Add("@MaterialID", SqlDbType.Int).Value = materialIDh;
+                                            spCmd.Parameters.Add("@IsoHoldingID", SqlDbType.Int).Value = holdingIDh;
+                                            spCmd.Parameters.Add("@IsoUniqurev", SqlDbType.Int).Value = isoUniquerevh;
+
+                                            spCmd.ExecuteNonQuery();
+                                        }
                                     }
+                                    reader.Close();
                                 }
-                                reader.Close();
                             }
-                        }
-                        using (SqlCommand selectCmd = new SqlCommand(holdingSelectQuery, conn))
-                        {
-                            selectCmd.Parameters.AddWithValue("@MaterialID", materialID);
-                            selectCmd.Parameters.AddWithValue("@ProjectID", projectid);
-                            using (SqlDataReader reader = selectCmd.ExecuteReader())
+                            using (SqlCommand selectCmd = new SqlCommand(holdingSelectQuery, conn))
                             {
-                                if (reader.Read())
+                                selectCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                selectCmd.Parameters.AddWithValue("@ProjectID", projectid);
+                                using (SqlDataReader reader = selectCmd.ExecuteReader())
                                 {
-                                    int holdingID = Convert.ToInt32(reader["HoldingID"]);
+                                    if (reader.Read())
+                                    {
+                                        int holdingID = Convert.ToInt32(reader["HoldingID"]);
 
-                                    // Copy current REQData to Deleted
-                                    string copyQuery = @"
+                                        // Copy current REQData to Deleted
+                                        string copyQuery = @"
                                 INSERT INTO SPMAT_REQData_Deleted (
                                     MaterialID, ProjectID, Discipline, Area, Unit, Phase, Const_Area, ISO, Ident_no,
                                     qty, qty_unit, Fabrication_Type, Spec, IsoRevisionDate, IsoRevision, IsLocked,
@@ -1920,14 +1938,14 @@ END";
 
                                
 ";
-                                    using (SqlCommand copyCmd = new SqlCommand(copyQuery, conn))
-                                    {
-                                        copyCmd.Parameters.AddWithValue("@MaterialID", materialID);
-                                        copyCmd.ExecuteNonQuery();
-                                    }
+                                        using (SqlCommand copyCmd = new SqlCommand(copyQuery, conn))
+                                        {
+                                            copyCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                            copyCmd.ExecuteNonQuery();
+                                        }
 
-                                    // Update REQData with values from Holding
-                                    string updateReqQuery = @"
+                                        // Update REQData with values from Holding
+                                        string updateReqQuery = @"
                                 UPDATE SPMAT_REQData
                                 SET Discipline = @Discipline,
                                     Area = @Area,
@@ -1950,45 +1968,87 @@ END";
                                     Deleted=0,
                                     IsoUniqeRevID= @IsoUniqeRevID
                                 WHERE MaterialID = @MaterialID";
-                                    using (SqlCommand updateCmd = new SqlCommand(updateReqQuery, conn))
-                                    {
-                                        updateCmd.Parameters.AddWithValue("@MaterialID", materialID);
-                                        updateCmd.Parameters.AddWithValue("@Discipline", reader["Discipline"]);
-                                        updateCmd.Parameters.AddWithValue("@Area", reader["Area"]);
-                                        updateCmd.Parameters.AddWithValue("@Unit", reader["Unit"]);
-                                        updateCmd.Parameters.AddWithValue("@Phase", reader["Phase"]);
-                                        updateCmd.Parameters.AddWithValue("@Const_Area", reader["Const_Area"]);
-                                        updateCmd.Parameters.AddWithValue("@ISO", reader["ISO"]);
-                                        updateCmd.Parameters.AddWithValue("@Ident_no", reader["Ident_no"]);
-                                        updateCmd.Parameters.AddWithValue("@qty", reader["qty"]);
-                                        updateCmd.Parameters.AddWithValue("@qty_unit", reader["qty_unit"]);
-                                        updateCmd.Parameters.AddWithValue("@Fabrication_Type", reader["Fabrication_Type"]);
-                                        updateCmd.Parameters.AddWithValue("@Spec", reader["Spec"]);
-                                        updateCmd.Parameters.AddWithValue("@IsoRevisionDate", reader["IsoRevisionDate"]);
-                                        updateCmd.Parameters.AddWithValue("@IsoRevision", reader["IsoRevision"]);
-                                        updateCmd.Parameters.AddWithValue("@IsLocked", reader["IsLocked"]);
-                                        updateCmd.Parameters.AddWithValue("@Code", reader["Code"]);
-                                        updateCmd.Parameters.AddWithValue("@IsoUniqeRevID", reader["IsoUniqeRevID"]);
-                                        
-                                        updateCmd.ExecuteNonQuery();
-                                    }
+                                        using (SqlCommand updateCmd = new SqlCommand(updateReqQuery, conn))
+                                        {
+                                            updateCmd.Parameters.AddWithValue("@MaterialID", materialID);
+                                            updateCmd.Parameters.AddWithValue("@Discipline", reader["Discipline"]);
+                                            updateCmd.Parameters.AddWithValue("@Area", reader["Area"]);
+                                            updateCmd.Parameters.AddWithValue("@Unit", reader["Unit"]);
+                                            updateCmd.Parameters.AddWithValue("@Phase", reader["Phase"]);
+                                            updateCmd.Parameters.AddWithValue("@Const_Area", reader["Const_Area"]);
+                                            updateCmd.Parameters.AddWithValue("@ISO", reader["ISO"]);
+                                            updateCmd.Parameters.AddWithValue("@Ident_no", reader["Ident_no"]);
+                                            updateCmd.Parameters.AddWithValue("@qty", reader["qty"]);
+                                            updateCmd.Parameters.AddWithValue("@qty_unit", reader["qty_unit"]);
+                                            updateCmd.Parameters.AddWithValue("@Fabrication_Type", reader["Fabrication_Type"]);
+                                            updateCmd.Parameters.AddWithValue("@Spec", reader["Spec"]);
+                                            updateCmd.Parameters.AddWithValue("@IsoRevisionDate", reader["IsoRevisionDate"]);
+                                            updateCmd.Parameters.AddWithValue("@IsoRevision", reader["IsoRevision"]);
+                                            updateCmd.Parameters.AddWithValue("@IsLocked", reader["IsLocked"]);
+                                            updateCmd.Parameters.AddWithValue("@Code", reader["Code"]);
+                                            updateCmd.Parameters.AddWithValue("@IsoUniqeRevID", reader["IsoUniqeRevID"]);
 
-                                    reader.Close();
+                                            updateCmd.ExecuteNonQuery();
+                                        }
 
-                                    // Delete from Holding using HoldingID
-                                    string deleteHoldingQuery = "DELETE FROM SPMAT_REQData_Holding WHERE HoldingID = @HoldingID";
-                                    using (SqlCommand deleteCmd = new SqlCommand(deleteHoldingQuery, conn))
-                                    {
-                                        deleteCmd.Parameters.AddWithValue("@HoldingID", holdingID);
-                                        deleteCmd.ExecuteNonQuery();
+                                        reader.Close();
+
+                                        // Delete from Holding using HoldingID
+                                        string deleteHoldingQuery = "DELETE FROM SPMAT_REQData_Holding WHERE HoldingID = @HoldingID";
+                                        using (SqlCommand deleteCmd = new SqlCommand(deleteHoldingQuery, conn))
+                                        {
+                                            deleteCmd.Parameters.AddWithValue("@HoldingID", holdingID);
+                                            deleteCmd.ExecuteNonQuery();
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    // Step 1: Get distinct IsoUniqeRevID values
+                    List<string> isoRevIds = new List<string>();
+                    string selectQuery = $"SELECT DISTINCT IsoUniqeRevID FROM SPMAT_MTOData WHERE MTOID IN ({ids})";
+                    using (SqlCommand selectCmd = new SqlCommand(selectQuery, conn))
+                    {
+                        using (SqlDataReader reader = selectCmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                isoRevIds.Add(reader["IsoUniqeRevID"].ToString());
+                            }
+                        }
+                    }
+
+                    // Step 2: Update IsoDataHistory using the retrieved IsoUniqeRevID list
+                    if (isoRevIds.Any())
+                    {
+                        var revIdParams = isoRevIds.Select((id, index) => $"@revId{index}").ToList();
+                        string updateIsoQuery = $@"
+        UPDATE IsoDataHistory
+        SET IsProcessed = 1
+        WHERE IsoUniqeRevID IN ({string.Join(",", revIdParams)})
+          AND IsProcessed = 0
+          AND ProjectID = @ProjectID";
+
+                        using (SqlCommand updateIsoCmd = new SqlCommand(updateIsoQuery, conn))
+                        {
+                            updateIsoCmd.Parameters.AddWithValue("@ProjectID", projectid); // assuming you have this variable
+                            for (int i = 0; i < isoRevIds.Count; i++)
+                            {
+                                updateIsoCmd.Parameters.AddWithValue(revIdParams[i], isoRevIds[i]);
+                            }
+
+                            updateIsoCmd.ExecuteNonQuery();
+                        }
+                    }
+
                 }
             }
-
+            catch (Exception ex)
+            {
+                error= ex.Message;
+            }
+            return error;
         }
 
         internal static List<SPMATDeletedData> GetMaintenanceData(string projid)
