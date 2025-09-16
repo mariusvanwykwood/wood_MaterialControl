@@ -1462,7 +1462,7 @@ ORDER BY [Drawing_Number];";
                 cn.Open();
                 var cmd = new SqlCommand(@"
             UPDATE SPMAT_REQData
-            SET Checked = 0, Moved = 0, Deleted=0 
+            SET Checked = 0, Moved = 0, Deleted=0, Moveddate =null
             WHERE ISO = @ISO and [IsoUniqeRevID]=@IsoUniqeRevID", cn);
                 cmd.Parameters.AddWithValue("@ISO", iso);
                 cmd.Parameters.AddWithValue("@IsoUniqeRevID", UniqueIsoRev);
@@ -1470,7 +1470,7 @@ ORDER BY [Drawing_Number];";
 
                 var cmd2 = new SqlCommand(@"
             DELETE FROM SPMAT_REQData_Temp
-            WHERE ISO = @ISO and [IsoUniqeRevID]=@IsoUniqeRevID and Processed=0 ", cn);
+            WHERE ISO = @ISO and [IsoUniqeRevID]=@IsoUniqeRevID", cn);
                 cmd2.Parameters.AddWithValue("@ISO", iso);
                 cmd2.Parameters.AddWithValue("@IsoUniqeRevID", UniqueIsoRev);
                 cmd2.ExecuteNonQuery();
@@ -2203,10 +2203,10 @@ END";
 
                 // Insert into SPMAT_FIleExports
                 string UpdateQuery = @"
-             Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0,Deleted=0 where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
-            delete from[SPMAT_REQData_Temp] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
-            delete from[SPMAT_IntrimData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
-            Delete from[SPMAT_MTOData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID";
+             Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0,Deleted=0 ,Moveddate =null where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
+            delete from [SPMAT_REQData_Temp] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
+            delete from [SPMAT_IntrimData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
+            Delete from [SPMAT_MTOData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID";
                 using (SqlCommand UpdateCmd = new SqlCommand(UpdateQuery, conn))
                 {
                     UpdateCmd.Parameters.AddWithValue("@ISO", ISO);

@@ -2092,25 +2092,36 @@ namespace Wood_MaterialControl
 
         protected void gvInterim_RowCommand(object sender, GridViewCommandEventArgs e)
         {
-            if (e.CommandName == "RemoveRow")
+            try
             {
-                int fileId = Convert.ToInt32(e.CommandArgument);
-                GridViewRow row = ((Button)e.CommandSource).NamingContainer as GridViewRow;
+                diverror.Style["display"] = "none";
+                lblerror.Text = "";
+                if (e.CommandName == "RemoveRow")
+                {
+                    int fileId = Convert.ToInt32(e.CommandArgument);
+                    GridViewRow row = ((Button)e.CommandSource).NamingContainer as GridViewRow;
 
-                var keys = gvInterim.DataKeys[row.RowIndex];
-                string INTID = keys["INTID"].ToString();
-                string MaterialID = keys["MaterialID"].ToString();
-                string ISO = keys["ISO"].ToString();
-                int Uniquerev = int.Parse(keys["IsoUniqeRevID"].ToString());
+                    var keys = gvInterim.DataKeys[row.RowIndex];
+                    string INTID = keys["INTID"].ToString();
+                    string MaterialID = keys["MaterialID"].ToString();
+                    string ISO = keys["ISO"].ToString();
+                    int Uniquerev = int.Parse(keys["IsoUniqeRevID"].ToString());
 
-                // Refactored: Use DataClass methods instead of inline SQL
-                DataClass.DeleteMTOEntry(ISO);
-                DataClass.UncheckREQEntry(ISO, Uniquerev);
-                Session["IsPreviousData"] = null;
-                ReloadIso();
-                // Refresh the grid
-                //btnviewInterim_Click(null, null);
-                ForceButtons("btnviewInterim", false);
+                    // Refactored: Use DataClass methods instead of inline SQL
+                    DataClass.DeleteMTOEntry(ISO);
+                    DataClass.UncheckREQEntry(ISO, Uniquerev);
+                    Session["IsPreviousData"] = null;
+                    ReloadIso();
+                    // Refresh the grid
+                    //btnviewInterim_Click(null, null);
+                    ForceButtons("btnviewInterim", false);
+                }
+            }
+            catch(Exception er)
+            {
+                diverror.Style["display"] = "block";
+                lblerror.Text = "Error on Removing:"+er.Message;
+                lblerror.ForeColor = System.Drawing.Color.Red;
             }
 
         }
@@ -2765,7 +2776,7 @@ namespace Wood_MaterialControl
                 string ISO = keys["ISO"].ToString();
                 int IsoUniqeRevID = int.Parse(keys["IsoUniqeRevID"].ToString());
                 DataClass.RemoveFromFinal(MTOID, ISO, IsoUniqeRevID);
-
+                
                 ReloadIso();
                 // Refresh the grid
                 //btnviewInterim_Click(null, null);

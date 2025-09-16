@@ -204,7 +204,7 @@
                                     
                                     <asp:TemplateField HeaderText="Actions">
                                         <ItemTemplate>
-                                            <asp:Button ID="btnRemove" runat="server" Text="Remove" CommandName="RemoveRow" CommandArgument='<%# Eval("INTID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');"/>
+                                            <asp:Button ID="btnRemove" runat="server" Text="Remove" CommandName="RemoveRow" CommandArgument='<%# Eval("INTID") %>' OnClientClick="return confirm('Are you sure you want to remove this item?');" CausesValidation="false" />
                                         </ItemTemplate>
                                     </asp:TemplateField>
                                 </Columns>
