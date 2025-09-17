@@ -308,6 +308,8 @@ namespace Wood_MaterialControl
                     IsLocked = item.IsLocked,
                     IsoUniqeRevID = item.IsoUniqeRevID
                 }).ToList();
+                var selectedisorev=dbdata.Select(x => x.IsoUniqeRevID).Distinct().FirstOrDefault();
+
 
                 List<string> distinctUnits = DataClass.GetUnitsByProject(projid);
                 List<string> distinctPhases = DataClass.GetPhasesByProject(projid);
@@ -343,6 +345,7 @@ namespace Wood_MaterialControl
                 Session["Idents"] = distinctIdents;
                 Session["SpecShortCodeMap"] = specShortcodeMap;
                 Session["ShortCodeIdentMap"] = shortCodeIdentMap;
+                Session["IsoUniqeRevID"] = selectedisorev;
 
                 HttpContext.Current.Items["Units"] = distinctUnits;
                 HttpContext.Current.Items["Phases"] = distinctPhases;
@@ -540,213 +543,222 @@ namespace Wood_MaterialControl
         {
             diverror.Style["display"] = "none";
             lblerror.Text = "";
-            bool allChecked = true;
-            List<SPMATDBData> updatedItems = new List<SPMATDBData>();
-            var SelectedISO = ddliso.SelectedItem.Text;
-
-            string isorev = "";
-            var match = System.Text.RegularExpressions.Regex.Match(SelectedISO, @"\bRev:\s*([^\s:]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (match.Success)
+            try
             {
-                isorev = match.Groups[1].Value.Trim(); // e.g., "0", "0.1", "S0", "R0", etc.
-            }
+                bool allChecked = true;
+                List<SPMATDBData> updatedItems = new List<SPMATDBData>();
+                var SelectedISO = ddliso.SelectedItem.Text;
 
-
-            var loadedSpecs = Session["LoadedSpecs"] as List<SpecData>;
-            var griddata = Session["GridData"] as List<GridData>;
-            var dbdata = Session["OriginalDBData"] as List<GridData>;
-            var area = Session["CurrentArea"]?.ToString();
-            var disipline = Session["CurrentDisipline"]?.ToString();
-            var iso = Session["CurrentIso"]?.ToString();
-            BindExcelGridView(griddata, area, iso, bindData: true);
-            var chklist = Session["CheckedMaterialIDs"] as List<int> ?? new List<int>();
-            var changedUnits = Session["ChangedUnits"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedPhases = Session["ChangedPhases"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedConstAreas = Session["ChangedConstAreas"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedSpecs = Session["ChangedSpecs"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedShortcodes = Session["ChangedShortcodes"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedIdents = Session["ChangedIdents"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            var changedText = Session["ChangedText"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
-            foreach (GridViewRow row in ExcelGridView.Rows)
-            {
-                int materialID = Convert.ToInt32(ExcelGridView.DataKeys[row.RowIndex].Value);
-                if (!chklist.Contains(materialID))
+                string isorev = "";
+                var match = System.Text.RegularExpressions.Regex.Match(SelectedISO, @"\bRev:\s*([^\s:]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
                 {
-                    allChecked = false;
-                    break;
+                    isorev = match.Groups[1].Value.Trim(); // e.g., "0", "0.1", "S0", "R0", etc.
                 }
-                // Retrieve controls
-                var txtQty = row.FindControl("txtQty") as System.Web.UI.WebControls.TextBox;
-                var ddlUnit = row.FindControl("ddlUnit") as DropDownList;
-                var ddlPhase = row.FindControl("ddlPhase") as DropDownList;
-                var ddlConstArea = row.FindControl("ddlConstArea") as DropDownList;
-                var ddlSpec = row.FindControl("ddlSpec") as DropDownList;
-                var ddlShortcode = row.FindControl("ddlShortcode") as DropDownList;
-                var ddlIdent = row.FindControl("ddlIdent") as DropDownList;
 
-                //if (txtQty == null || !decimal.TryParse(txtQty.Text, out decimal newQty))
-                //    continue;
 
-                string selectedText = changedText.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? txtQty?.Text;
-                string selectedUnit = changedUnits.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlUnit?.SelectedValue;
-                string selectedPhase = changedPhases.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlPhase?.SelectedValue;
-                string selectedConstArea = changedConstAreas.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlConstArea?.SelectedValue;
-                string selectedSpec = changedSpecs.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlSpec?.SelectedValue;
-                string selectedShortcode = changedShortcodes.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlShortcode?.SelectedValue;
-                string selectedIdent = changedIdents.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlIdent?.SelectedValue;
-
-                if (DecParse(selectedText).HasError)
+                var loadedSpecs = Session["LoadedSpecs"] as List<SpecData>;
+                var griddata = Session["GridData"] as List<GridData>;
+                var dbdata = Session["OriginalDBData"] as List<GridData>;
+                var area = Session["CurrentArea"]?.ToString();
+                var disipline = Session["CurrentDisipline"]?.ToString();
+                var iso = Session["CurrentIso"]?.ToString();
+                BindExcelGridView(griddata, area, iso, bindData: true);
+                var chklist = Session["CheckedMaterialIDs"] as List<int> ?? new List<int>();
+                var changedUnits = Session["ChangedUnits"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedPhases = Session["ChangedPhases"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedConstAreas = Session["ChangedConstAreas"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedSpecs = Session["ChangedSpecs"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedShortcodes = Session["ChangedShortcodes"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedIdents = Session["ChangedIdents"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                var changedText = Session["ChangedText"] as List<Dictionary<int, string>> ?? new List<Dictionary<int, string>>();
+                foreach (GridViewRow row in ExcelGridView.Rows)
                 {
-                    lblMessage.Text = "Please enter a valid quantity.";
+                    int materialID = Convert.ToInt32(ExcelGridView.DataKeys[row.RowIndex].Value);
+                    if (!chklist.Contains(materialID))
+                    {
+                        allChecked = false;
+                        break;
+                    }
+                    // Retrieve controls
+                    var txtQty = row.FindControl("txtQty") as System.Web.UI.WebControls.TextBox;
+                    var ddlUnit = row.FindControl("ddlUnit") as DropDownList;
+                    var ddlPhase = row.FindControl("ddlPhase") as DropDownList;
+                    var ddlConstArea = row.FindControl("ddlConstArea") as DropDownList;
+                    var ddlSpec = row.FindControl("ddlSpec") as DropDownList;
+                    var ddlShortcode = row.FindControl("ddlShortcode") as DropDownList;
+                    var ddlIdent = row.FindControl("ddlIdent") as DropDownList;
+
+                    //if (txtQty == null || !decimal.TryParse(txtQty.Text, out decimal newQty))
+                    //    continue;
+
+                    string selectedText = changedText.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? txtQty?.Text;
+                    string selectedUnit = changedUnits.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlUnit?.SelectedValue;
+                    string selectedPhase = changedPhases.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlPhase?.SelectedValue;
+                    string selectedConstArea = changedConstAreas.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlConstArea?.SelectedValue;
+                    string selectedSpec = changedSpecs.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlSpec?.SelectedValue;
+                    string selectedShortcode = changedShortcodes.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlShortcode?.SelectedValue;
+                    string selectedIdent = changedIdents.FirstOrDefault(d => d.ContainsKey(materialID))?[materialID] ?? ddlIdent?.SelectedValue;
+
+                    if (DecParse(selectedText).HasError)
+                    {
+                        lblMessage.Text = "Please enter a valid quantity.";
+                        lblMessage.ForeColor = System.Drawing.Color.Red;
+                        return;
+                    }
+
+                    string qtyUnit = "pc"; // default
+
+                    if (loadedSpecs != null && !string.IsNullOrEmpty(selectedShortcode))
+                    {
+                        var matchedSpec = loadedSpecs.FirstOrDefault(s => s.Shortcode == selectedShortcode);
+                        if (matchedSpec != null && matchedSpec.Shortcode == "PIP")
+                            qtyUnit = "m";
+                    }
+                    //compare to original, if no changes keep iso and code
+                    var orgdbdata = dbdata?.FirstOrDefault(g => g.MaterialID == materialID);
+                    var originalData = griddata?.FirstOrDefault(g => g.MaterialID == materialID);
+                    var havediffs = false;
+                    if (orgdbdata != null && originalData != null)
+                    {
+                        havediffs = AreObjectsDifferentExcept(orgdbdata, originalData);
+                    }
+                    else if (orgdbdata == null)
+                    {
+                        havediffs = true;
+                    }
+                    if (originalData != null)
+                    {
+                        var orgToSPMAT = new SPMATDBData
+                        {
+                            MaterialID = originalData.MaterialID,
+                            ProjectID = originalData.ProjectID,
+                            Discipline = originalData.Discipline,
+                            Area = originalData.Area,
+                            Unit = originalData.Unit,
+                            Phase = originalData.Phase,
+                            Const_Area = originalData.Const_Area,
+                            ISO = originalData.ISO,
+                            Ident_no = originalData.Ident_no,
+                            qty = originalData.qty,
+                            qty_unit = originalData.qty_unit,
+                            Fabrication_Type = originalData.Fabrication_Type,
+                            Spec = originalData.Spec,
+                            IsoRevisionDate = originalData.IsoRevisionDate,
+                            IsoRevision = originalData.IsoRevision,
+                            Lock = originalData.IsLocked,
+                            Code = originalData.Source,
+                            IsoUniqeRevID = originalData.IsoUniqeRevID
+                        };
+
+                        var updatedCompare = new SPMATDBData
+                        {
+                            MaterialID = originalData.MaterialID,
+                            ProjectID = originalData.ProjectID,
+                            Discipline = string.IsNullOrEmpty(originalData.Discipline) ? disipline : originalData?.Discipline,
+                            Area = string.IsNullOrEmpty(originalData.Area) ? area : originalData?.Area,
+                            Unit = selectedUnit,
+                            Phase = selectedPhase,
+                            Const_Area = selectedConstArea,
+                            ISO = originalData.ISO,
+                            Ident_no = selectedIdent,
+                            qty = selectedText,
+                            qty_unit = qtyUnit,
+                            Fabrication_Type = havediffs ? "Undefined" : orgdbdata?.Fabrication_Type,
+                            Spec = havediffs ? selectedSpec : orgdbdata?.Spec,
+                            IsoRevision = !String.IsNullOrEmpty(isorev) ? isorev : orgdbdata?.IsoRevision,
+                            IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
+                            Lock = havediffs ? "" : orgdbdata?.IsLocked,
+                            Code = havediffs ? "M" : orgdbdata?.Source,
+                            IsoUniqeRevID = orgdbdata?.IsoUniqeRevID ?? originalData.IsoUniqeRevID
+                        };
+                        if (orgToSPMAT != null && updatedCompare != null)
+                        {
+                            havediffs = AreObjectsDifferentExcept(orgToSPMAT, updatedCompare);
+                        }
+                        var updated = new SPMATDBData
+                        {
+                            MaterialID = originalData.MaterialID,
+                            ProjectID = originalData.ProjectID,
+                            Discipline = string.IsNullOrEmpty(originalData.Discipline) ? disipline : originalData?.Discipline,
+                            Area = string.IsNullOrEmpty(originalData.Area) ? area : originalData?.Area,
+                            Unit = selectedUnit,
+                            Phase = selectedPhase,
+                            Const_Area = selectedConstArea,
+                            ISO = originalData.ISO,
+                            Ident_no = selectedIdent,
+                            qty = selectedText,
+                            qty_unit = qtyUnit,
+                            Fabrication_Type = havediffs ? "Undefined" : orgdbdata?.Fabrication_Type,
+                            Spec = havediffs ? selectedSpec : orgdbdata?.Spec,
+                            IsoRevision = !String.IsNullOrEmpty(isorev) ? isorev : orgdbdata?.IsoRevision,
+                            IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
+                            Lock = havediffs ? "" : orgdbdata?.IsLocked,
+                            Code = havediffs ? "M" : orgdbdata?.Source,
+                            IsoUniqeRevID = orgdbdata?.IsoUniqeRevID ?? originalData.IsoUniqeRevID
+                        };
+                        updatedItems.Add(updated);
+
+                        if (havediffs)
+                        {
+                            DataClass.InsertIntoSPMAT_REQData_Temp(updated);
+                        }
+                    }
+
+                }
+
+                if (!allChecked)
+                {
+                    lblMessage.Text = "Please check all rows before submitting.";
                     lblMessage.ForeColor = System.Drawing.Color.Red;
                     return;
                 }
 
-                string qtyUnit = "pc"; // default
+                // Update database
+                bool IsPreviousData = bool.TryParse(Session["IsPreviousData"]?.ToString(), out var result) && result;
 
-                if (loadedSpecs != null && !string.IsNullOrEmpty(selectedShortcode))
+                foreach (var item in updatedItems)
                 {
-                    var matchedSpec = loadedSpecs.FirstOrDefault(s => s.Shortcode == selectedShortcode);
-                    if (matchedSpec != null && matchedSpec.Shortcode == "PIP")
-                        qtyUnit = "m";
-                }
-                //compare to original, if no changes keep iso and code
-                var orgdbdata = dbdata?.FirstOrDefault(g => g.MaterialID == materialID);
-                var originalData = griddata?.FirstOrDefault(g => g.MaterialID == materialID);
-                var havediffs = false;
-                if (orgdbdata != null && originalData != null)
-                {
-                    havediffs = AreObjectsDifferentExcept(orgdbdata, originalData);
-                }
-                else if (orgdbdata == null)
-                {
-                    havediffs = true;
-                }
-                if (originalData != null)
-                {
-                    var orgToSPMAT = new SPMATDBData
-                    {
-                        MaterialID = originalData.MaterialID,
-                        ProjectID = originalData.ProjectID,
-                        Discipline = originalData.Discipline,
-                        Area = originalData.Area,
-                        Unit = originalData.Unit,
-                        Phase = originalData.Phase,
-                        Const_Area = originalData.Const_Area,
-                        ISO = originalData.ISO,
-                        Ident_no = originalData.Ident_no,
-                        qty = originalData.qty,
-                        qty_unit = originalData.qty_unit,
-                        Fabrication_Type = originalData.Fabrication_Type,
-                        Spec = originalData.Spec,
-                        IsoRevisionDate = originalData.IsoRevisionDate,
-                        IsoRevision = originalData.IsoRevision,
-                        Lock = originalData.IsLocked,
-                        Code = originalData.Source,
-                        IsoUniqeRevID = originalData.IsoUniqeRevID
-                    };
-
-                    var updatedCompare = new SPMATDBData
-                    {
-                        MaterialID = originalData.MaterialID,
-                        ProjectID = originalData.ProjectID,
-                        Discipline = string.IsNullOrEmpty(originalData.Discipline) ? disipline : originalData?.Discipline,
-                        Area = string.IsNullOrEmpty(originalData.Area) ? area : originalData?.Area,
-                        Unit = selectedUnit,
-                        Phase = selectedPhase,
-                        Const_Area = selectedConstArea,
-                        ISO = originalData.ISO,
-                        Ident_no = selectedIdent,
-                        qty = selectedText,
-                        qty_unit = qtyUnit,
-                        Fabrication_Type = havediffs ? "Undefined" : orgdbdata?.Fabrication_Type,
-                        Spec = havediffs ? selectedSpec : orgdbdata?.Spec,
-                        IsoRevision = !String.IsNullOrEmpty(isorev) ? isorev : orgdbdata?.IsoRevision,
-                        IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
-                        Lock = havediffs ? "" : orgdbdata?.IsLocked,
-                        Code = havediffs ? "M" : orgdbdata?.Source,
-                        IsoUniqeRevID = orgdbdata.IsoUniqeRevID
-                    };
-                    if (orgToSPMAT != null && updatedCompare != null)
-                    {
-                        havediffs = AreObjectsDifferentExcept(orgToSPMAT, updatedCompare);
-                    }
-                    var updated = new SPMATDBData
-                    {
-                        MaterialID = originalData.MaterialID,
-                        ProjectID = originalData.ProjectID,
-                        Discipline = string.IsNullOrEmpty(originalData.Discipline) ? disipline : originalData?.Discipline,
-                        Area = string.IsNullOrEmpty(originalData.Area) ? area : originalData?.Area,
-                        Unit = selectedUnit,
-                        Phase = selectedPhase,
-                        Const_Area = selectedConstArea,
-                        ISO = originalData.ISO,
-                        Ident_no = selectedIdent,
-                        qty = selectedText,
-                        qty_unit = qtyUnit,
-                        Fabrication_Type = havediffs ? "Undefined" : orgdbdata?.Fabrication_Type,
-                        Spec = havediffs ? selectedSpec : orgdbdata?.Spec,
-                        IsoRevision = !String.IsNullOrEmpty(isorev) ? isorev : orgdbdata?.IsoRevision,
-                        IsoRevisionDate = havediffs ? "" : orgdbdata?.IsoRevisionDate,
-                        Lock = havediffs ? "" : orgdbdata?.IsLocked,
-                        Code = havediffs ? "M" : orgdbdata?.Source,
-                        IsoUniqeRevID = orgdbdata.IsoUniqeRevID
-                    };
-                    updatedItems.Add(updated);
-
-                    if (havediffs)
-                    {
-                        DataClass.InsertIntoSPMAT_REQData_Temp(updated);
-                    }
+                    DataClass.FinalizeMaterialUpdate(item, IsPreviousData);
                 }
 
+                lblMessage.ForeColor = System.Drawing.Color.Green;
+                lblMessage.Text = "All quantities updated successfully.";
+                var eid = 0;
+                List<DDLList> clientlist = new List<DDLList>();
+                try
+                {
+                    eid = int.Parse(Session["EID"].ToString());
+                    clientlist = (List<DDLList>)Session["ClientList"];
+                }
+                catch { }
+                Session.Clear();
+                Session.Clear();
+                Session["EID"] = eid;
+                Session["ClientList"] = clientlist;
+                ddliso.ClearSelection();
+                ExcelGridView.DataSource = null;
+                ExcelGridView.DataBind();
+                lblFileName.Text = "";
+                btnSubmit.Style["display"] = "none";
+                btnAddNew.Style["display"] = "none";
+                pnlExcelUpload.Style["display"] = "none";
+                btnCancelAdd_Click(null, null);
+                ReloadIso();
+                //btnviewspmat_Click(null, null);
+                //ForceButtons("btnviewspmat",true);
+                var Projid = ddlprojsel.SelectedValue;
+                List<SPMATDBData> mtoData = DataClass.GetWorkingMTOData(Projid);
+                Session["SPMATExportData"] = mtoData;
+                ForceButtons("btnExportSPMAT", true);
+                ForceButtons("btnviewInterim", true);
             }
-
-            if (!allChecked)
+            catch(Exception er)
             {
-                lblMessage.Text = "Please check all rows before submitting.";
-                lblMessage.ForeColor = System.Drawing.Color.Red;
-                return;
+                diverror.Style["display"] = "block";
+                lblerror.Text = "Error Saving Data : "+er.Message;
+                lblerror.ForeColor = System.Drawing.Color.Red;
             }
-
-            // Update database
-            bool IsPreviousData = bool.TryParse(Session["IsPreviousData"]?.ToString(), out var result) && result;
-
-            foreach (var item in updatedItems)
-            {
-                DataClass.FinalizeMaterialUpdate(item, IsPreviousData);
-            }
-
-            lblMessage.ForeColor = System.Drawing.Color.Green;
-            lblMessage.Text = "All quantities updated successfully.";
-            var eid = 0;
-            List<DDLList> clientlist = new List<DDLList>();
-            try
-            {
-                eid = int.Parse(Session["EID"].ToString());
-                clientlist = (List<DDLList>)Session["ClientList"];
-            }
-            catch { }
-            Session.Clear();
-            Session.Clear();
-            Session["EID"] = eid;
-            Session["ClientList"] = clientlist;
-            ddliso.ClearSelection();
-            ExcelGridView.DataSource = null;
-            ExcelGridView.DataBind();
-            lblFileName.Text = "";
-            btnSubmit.Style["display"] = "none";
-            btnAddNew.Style["display"] = "none";
-            pnlExcelUpload.Style["display"] = "none";
-            btnCancelAdd_Click(null, null);
-            ReloadIso();
-            //btnviewspmat_Click(null, null);
-            //ForceButtons("btnviewspmat",true);
-            var Projid = ddlprojsel.SelectedValue;
-            List<SPMATDBData> mtoData = DataClass.GetWorkingMTOData(Projid);
-            Session["SPMATExportData"] = mtoData;
-            ForceButtons("btnExportSPMAT", true);
-            ForceButtons("btnviewInterim", true);
 
         }
 
@@ -1636,11 +1648,15 @@ namespace Wood_MaterialControl
             lblMessage.Text = "";
             pnlAddForm.Visible = true;
 
-            ddlAddUnit.DataSource = Session["Units"] as List<string>;
+            var unitlist= Session["Units"] as List<string>;
+            unitlist.Sort();
+            ddlAddUnit.DataSource = unitlist;
             ddlAddUnit.DataBind();
             ddlAddUnit.Items.Insert(0, new ListItem("-- Select --", ""));
 
-            ddlAddSpec.DataSource = Session["Specs"] as List<string>;
+            var speclist = Session["Specs"] as List<string>;
+            speclist.Sort();
+            ddlAddSpec.DataSource = speclist;
             ddlAddSpec.DataBind();
             ddlAddSpec.Items.Insert(0, new ListItem("-- Select --", ""));
 
@@ -1753,7 +1769,12 @@ namespace Wood_MaterialControl
              ? "m"
              : (hasFraction ? "m" : "pc");
 
-
+            var selectedisorev = 0;
+            try
+            {
+                selectedisorev = int.Parse(Session["IsoUniqeRevID"].ToString());
+            }
+            catch { }
             var newSPMAT = new SPMATDBData
             {
                 MaterialID = tempID, // Temporary ID
@@ -1773,7 +1794,7 @@ namespace Wood_MaterialControl
                 IsoRevisionDate = "",
                 Lock = "",
                 Code = "M",
-                IsoUniqeRevID = 0
+                IsoUniqeRevID = selectedisorev
             };
 
             // Use PopulateGridData to enrich the entry
@@ -1860,7 +1881,11 @@ namespace Wood_MaterialControl
             var specShortCodeMap = Session["SpecShortCodeMap"] as Dictionary<string, List<string>>;
             if (specShortCodeMap != null && specShortCodeMap.ContainsKey(spec))
             {
-                ddlAddShortcode.DataSource = specShortCodeMap[spec];
+
+                var shortcodelist = specShortCodeMap[spec];
+                shortcodelist.Sort(); // Sorts alphabetically
+
+                ddlAddShortcode.DataSource = shortcodelist;
                 ddlAddShortcode.DataBind();
                 ddlAddShortcode.Items.Insert(0, new ListItem("-- Select --", ""));
                 lblidentdesc.Text = "";
@@ -1875,7 +1900,13 @@ namespace Wood_MaterialControl
             var shortCodeIdentMap = Session["ShortCodeIdentMap"] as Dictionary<string, Dictionary<string, List<string>>>;
             if (shortCodeIdentMap != null && shortCodeIdentMap.ContainsKey(spec) && shortCodeIdentMap[spec].ContainsKey(shortcode))
             {
-                ddlAddIdent.DataSource = shortCodeIdentMap[spec][shortcode];
+
+                var identList = shortCodeIdentMap[spec][shortcode];
+                identList.Sort(); // Sorts alphabetically
+
+                ddlAddIdent.DataSource = identList;
+
+                //ddlAddIdent.DataSource = shortCodeIdentMap[spec][shortcode];
                 ddlAddIdent.DataBind();
                 ddlAddIdent.Items.Insert(0, new ListItem("-- Select --", ""));
                 lblidentdesc.Text = "";
