@@ -1689,12 +1689,15 @@ END";
                 string markDeletedQuery = @"
             UPDATE [dbo].[SPMAT_MTOData]
             SET IsDeleted = 1
-            WHERE MaterialID = @MaterialID and IsoUniqeRevID<=@IsoUniqeRevID";
+            WHERE (MaterialID = @MaterialID and IsoUniqeRevID<=@IsoUniqeRevID and IsDeleted=0) or (ISO=@ISO and Ident_No=@IdentNo and IsoRevision<>@IsoRevision and IsDeleted=0)";
 
                 using (SqlCommand markDeletedCmd = new SqlCommand(markDeletedQuery, conn))
                 {
                     markDeletedCmd.Parameters.AddWithValue("@MaterialID", data.MaterialID);
                     markDeletedCmd.Parameters.AddWithValue("@IsoUniqeRevID", data.IsoUniqeRevID);
+                    markDeletedCmd.Parameters.AddWithValue("@ISO", data.ISO);
+                    markDeletedCmd.Parameters.AddWithValue("@IdentNo", data.Ident_no);
+                    markDeletedCmd.Parameters.AddWithValue("@IsoRevision", data.IsoRevision);
                     markDeletedCmd.ExecuteNonQuery();
                 }
 
@@ -1859,7 +1862,7 @@ END";
                     set IsProcessed=1 
                     where 
                     [Drawing_Number]=(Select top 1 ISO from SPMAT_REQData WHERE MaterialID = @MaterialID) and 
-                    [IsoUniqeRevID]=(Select top 1 IsoUniqeRevID from SPMAT_REQData WHERE MaterialID = @MaterialID)
+                    [IsoUniqeRevID]=(Select top 1 IsoUniqeRevID from SPMAT_REQData WHERE MaterialID = @MaterialID order by IsoUniqeRevID desc)
                     and IsProcessed=0 AND ProjectID=@ProjectID;
 
                     SELECT TOP 1 *
@@ -1906,6 +1909,7 @@ END";
                                             spCmd.Parameters.Add("@MaterialID", SqlDbType.Int).Value = materialIDh;
                                             spCmd.Parameters.Add("@IsoHoldingID", SqlDbType.Int).Value = holdingIDh;
                                             spCmd.Parameters.Add("@IsoUniqurev", SqlDbType.Int).Value = isoUniquerevh;
+                                            spCmd.Parameters.Add("@ISO", SqlDbType.NVarChar).Value = Iso;
 
                                             spCmd.ExecuteNonQuery();
                                         }

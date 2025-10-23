@@ -209,6 +209,11 @@ namespace Wood_MaterialControl
             diverror.Style["display"] = "none";
             if (ddlprojsel.SelectedValue != "")
             {
+                ClearSession();
+                gvExported.DataSource = null;
+                gvExported.DataBind();
+                grFiles.DataSource = null;
+                grFiles.DataBind();
                 //Get Data for Iso DLL
                 var projid = ddlprojsel.SelectedValue;
                 Session["ENGPROJECTID"] = projid;
@@ -384,6 +389,8 @@ namespace Wood_MaterialControl
             Session["Idents"] = null;
             Session["SpecShortCodeMap"] = null;
             Session["ShortCodeIdentMap"] = null;
+            Session["MTOData"] = null;
+            CachedMTOData = new List<SPMATData>();
         }
 
         public List<GridData> PopulateGridData(List<SPMATDBData> spmatList, List<SpecData> specList)
