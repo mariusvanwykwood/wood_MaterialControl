@@ -115,7 +115,7 @@ namespace Wood_MaterialControl
             SqlConnection connection = (SqlConnection)null;
             try
             {
-                string cmdText = "SELECT DISTINCT [EID], [Surname] +' , '+[PreferredName]+'  ( '+[JobTitle] + ' - ' + [EmployeeEmail] +' )' FROM [WOOD_EMPLocations].[dbo].[Employees] where [IsDeleted]=0 and EID in(Select distinct [fld_EID] from [WOOD_MaterialControl_DEV].[dbo].[tbl_UserAccess]) order by 2";
+                string cmdText = "SELECT DISTINCT [EID], [Surname] +' , '+[PreferredName]+'  ( '+[JobTitle] + ' - ' + [EmployeeEmail] +' )' FROM [WOOD_EMPLocations].[dbo].[Employees] where [IsDeleted]=0 and EID in(Select distinct [fld_EID] from [WOOD_MaterialControl].[dbo].[tbl_UserAccess]) order by 2";
                 using (connection = new SqlConnection(DataClass.conUsers))
                 {
                     SqlCommand sqlCommand = new SqlCommand(cmdText, connection);
@@ -184,7 +184,7 @@ namespace Wood_MaterialControl
         #endregion
 
         #region Material
-        public static string conMat = @"Data Source=EDC09-SQL01\DAILYDIARY;Initial Catalog=WOOD_MaterialControl;User ID=MaterialControl;Password=MaterialControl;";
+        public static string conMat = @"Data Source=EDC09-SQL01\DAILYDIARY;Initial Catalog=WOOD_MaterialControl;User ID=MaterialControl;Password=MaterialControl;MultipleActiveResultSets=True;";
         #region Classes
         public class SpecData
         {
@@ -1539,11 +1539,14 @@ ORDER BY [Drawing_Number];";
                 string markDeletedQuery = @"
             UPDATE [dbo].[SPMAT_IntrimData]
             SET IsDeleted = 1
-            WHERE MaterialID = @MaterialID";
+            WHERE ProjectID=@ProjectID AND MaterialID = @MaterialID or (MaterialID<0 and [ISO] = @ISO and [Ident_no]=@Ident_no)";
 
                 using (SqlCommand markDeletedCmd = new SqlCommand(markDeletedQuery, conn))
                 {
+                    markDeletedCmd.Parameters.AddWithValue("@ProjectID", data.ProjectID);
                     markDeletedCmd.Parameters.AddWithValue("@MaterialID", data.MaterialID);
+                    markDeletedCmd.Parameters.AddWithValue("@ISO", data.ISO);
+                    markDeletedCmd.Parameters.AddWithValue("@Ident_no", data.Ident_no);
                     markDeletedCmd.ExecuteNonQuery();
                 }
 
@@ -1855,8 +1858,22 @@ END";
                     // 3. Process each MaterialID
                     foreach (string id in ids.Split(','))
                     {
-                        if (int.TryParse(id.Trim(), out int materialID))
+                        if (int.TryParse(id.Trim(), out int mtoID))
                         {
+                            int materialID = 0;
+                            using (SqlCommand getMatCmd = new SqlCommand("SELECT MaterialID FROM SPMAT_MTOData WHERE MTOID = @MTOID and MaterialID>0", conn))
+                            {
+                                getMatCmd.Parameters.AddWithValue("@MTOID", mtoID);
+                                object result = getMatCmd.ExecuteScalar();
+                                if (result != null)
+                                {
+                                    materialID = Convert.ToInt32(result);
+                                }
+                                else
+                                {
+                                    continue; // skip if no MaterialID found
+                                }
+                            }
                             string holdingSelectQuery = @"
                     UPDATE [dbo].[IsoDataHistory] 
                     set IsProcessed=1 
@@ -1873,15 +1890,15 @@ END";
                             using (SqlCommand holdselectCmd = new SqlCommand(allholdingQuery, conn))
                             {
                                 holdselectCmd.Parameters.AddWithValue("@MaterialID", materialID);
-                                using (SqlDataReader reader = holdselectCmd.ExecuteReader())
+                                using (SqlDataReader readerHolding = holdselectCmd.ExecuteReader())
                                 {
-                                    if (reader.Read())
+                                    if (readerHolding.Read())
                                     {
-                                        Iso = reader.GetString(0);
-                                        IsoUnique = Convert.ToInt32(reader[1]);
+                                        Iso = readerHolding.GetString(0);
+                                        IsoUnique = Convert.ToInt32(readerHolding[1]);
 
                                     }
-                                    reader.Close();
+                                    readerHolding.Close();
                                 }
                             }
                             string selectMatchingQuery = @"
@@ -1894,13 +1911,13 @@ END";
                                 selectCmdAll.Parameters.Add("@Iso", SqlDbType.VarChar).Value = Iso;
                                 selectCmdAll.Parameters.Add("@IsoUnique", SqlDbType.Int).Value = IsoUnique;
 
-                                using (SqlDataReader reader = selectCmdAll.ExecuteReader())
+                                using (SqlDataReader readerMatching = selectCmdAll.ExecuteReader())
                                 {
-                                    while (reader.Read())
+                                    while (readerMatching.Read())
                                     {
-                                        int holdingIDh = reader.GetInt32(0);
-                                        int materialIDh = reader.GetInt32(1);
-                                        int isoUniquerevh = reader.GetInt32(2);
+                                        int holdingIDh = readerMatching.GetInt32(0);
+                                        int materialIDh = readerMatching.GetInt32(1);
+                                        int isoUniquerevh = readerMatching.GetInt32(2);
 
                                         // Call stored procedure
                                         using (SqlCommand spCmd = new SqlCommand("UpdateHolding", conn))
@@ -1914,7 +1931,7 @@ END";
                                             spCmd.ExecuteNonQuery();
                                         }
                                     }
-                                    reader.Close();
+                                    readerMatching.Close();
                                 }
                             }
                             using (SqlCommand selectCmd = new SqlCommand(holdingSelectQuery, conn))
@@ -2014,12 +2031,13 @@ END";
                     string selectQuery = $"SELECT DISTINCT IsoUniqeRevID FROM SPMAT_MTOData WHERE MTOID IN ({ids})";
                     using (SqlCommand selectCmd = new SqlCommand(selectQuery, conn))
                     {
-                        using (SqlDataReader reader = selectCmd.ExecuteReader())
+                        using (SqlDataReader readerurev = selectCmd.ExecuteReader())
                         {
-                            while (reader.Read())
+                            while (readerurev.Read())
                             {
-                                isoRevIds.Add(reader["IsoUniqeRevID"].ToString());
+                                isoRevIds.Add(readerurev["IsoUniqeRevID"].ToString());
                             }
+                            readerurev.Close();
                         }
                     }
 
