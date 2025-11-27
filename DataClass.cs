@@ -2706,6 +2706,50 @@ END";
             }
             return FileID;
         }
+        internal static void UpdateExportRecord(int FileID, List<int> mTOIDs)
+        {
+            using (SqlConnection conn = new SqlConnection(conMat))
+            {
+                conn.Open();
+
+                // Step 1: Get existing FileMTOIDs
+                string selectQuery = "SELECT FileMTOIDs FROM SPMAT_FileExports WHERE FinalFileID = @FileID";
+                string existingIds = "";
+
+                using (SqlCommand selectCmd = new SqlCommand(selectQuery, conn))
+                {
+                    selectCmd.Parameters.AddWithValue("@FileID", FileID);
+                    var result = selectCmd.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        existingIds = result.ToString();
+                    }
+                }
+
+                // Step 2: Merge and remove duplicates
+                var existingList = existingIds.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                              .Select(int.Parse)
+                                              .ToList();
+
+                existingList.AddRange(mTOIDs);
+                var uniqueIds = existingList.Distinct().OrderBy(x => x).ToList(); // Optional: sort
+
+                string finalIds = string.Join(",", uniqueIds);
+
+                // Step 3: Update the record
+                string updateQuery = @"
+            UPDATE SPMAT_FileExports
+            SET FileMTOIDs = @MTOIDs
+            WHERE FinalFileID = @FileID";
+
+                using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
+                {
+                    updateCmd.Parameters.AddWithValue("@MTOIDs", finalIds);
+                    updateCmd.Parameters.AddWithValue("@FileID", FileID);
+                    updateCmd.ExecuteScalar();
+                }
+            }
+        }
 
         internal static void UpdateExportRecord(int fileID, string fileName)
         {

@@ -279,7 +279,16 @@ namespace Wood_MaterialControl
             }
             var projid = Session["ENGPROJECTID"].ToString();
             List<int> MTOIDs = updatedItems.Select(d => d.MTOID).Distinct().ToList();
-            int FileID = DataClass.InsertExportRecord(projid, MTOIDs);
+            var FileID = 0;
+            if (Session["ReExportFileID"] != null)
+            {
+                FileID = int.Parse(Session["ReExportFileID"].ToString());
+                DataClass.UpdateExportRecord(FileID, MTOIDs);
+            }
+            else
+            {
+                FileID = DataClass.InsertExportRecord(projid, MTOIDs);
+            }
             Session["ReExportFileID"] = FileID;
             foreach (var item in updatedItems)
             {
@@ -373,6 +382,7 @@ namespace Wood_MaterialControl
             DownloadFile efile = new DownloadFile();
             efile.filename = FileName;
             efile.contenttype = "application/vnd.ms-excel";
+            Session["ReExportFileID"] = null;
             using (System.IO.MemoryStream stream = GetStreamXL(workbook))
             {
                 try
@@ -393,7 +403,7 @@ namespace Wood_MaterialControl
                     }
                 }
                 catch { }
-                DataClass.SaveExportRecordFile(FileID, efile.filedata);
+                
                
             }
             //DataTable dt = ConvertReExportDataToDataTable(data);
