@@ -373,6 +373,26 @@ namespace Wood_MaterialControl
             public string Import { get; set; }
             public byte[] FileData { get; set; }
         }
+        public class SPMATReExportData
+        {
+            public int MTOID { get; set; }
+            public string Discipline { get; set; }
+            public string Area { get; set; }
+            public string Unit { get; set; }
+            public string Phase { get; set; }
+            public string Const_Area { get; set; }
+            public string ISO { get; set; }
+            public string Ident_no { get; set; }
+            public decimal qty { get; set; }
+            public string qty_unit { get; set; }
+            public string Fabrication_Type { get; set; }
+            public string Spec { get; set; }
+            public string Pos { get; set; }
+            public string IsoRevisionDate { get; set; }
+            public string IsoRevision { get; set; }
+            public string IsLocked { get; set; }
+            public int IsoUniqeRevID { get; set; }
+        }
         #endregion
         #region DataCalls
         public static List<SpecData> LoadSpectDataFromDB(string mainProjectID)
@@ -770,7 +790,14 @@ ORDER BY [Drawing_Number];";
            [IsoRevision],[IsLocked],[Code],IsoUniqeRevID
     FROM [dbo].[SPMAT_REQData]
     WHERE Moved = 0 and Deleted=0 AND LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND ProjectID = {ProjectID.Trim()} and [IsoRevision] = '{IsoRevision.Trim()}'
+    
+    UNION ALL
 
+    SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
+           [Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],
+           [IsoRevision],[IsLocked],[Code],IsoUniqeRevID
+    FROM [dbo].[SPMAT_REQData_Mod]
+    WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND ProjectID = {{ProjectID.Trim()}} and [IsoRevision] = '{IsoRevision.Trim()}'
     UNION ALL
 
     SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
@@ -787,8 +814,16 @@ ORDER BY [Drawing_Number];";
            [IsoRevision],[IsLocked],[Code],IsoUniqeRevID
     FROM [dbo].[SPMAT_REQData]
     WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND Checked = 0 and Deleted=0 AND ProjectID = {ProjectID.Trim()} and [IsoRevision] = '{IsoRevision.Trim()}'
+    
+UNION ALL
 
-    UNION ALL
+    SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
+           [Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],
+           [IsoRevision],[IsLocked],[Code],IsoUniqeRevID
+    FROM [dbo].[SPMAT_REQData_Mod]
+    WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND Checked = 0 AND ProjectID = {ProjectID.Trim()} and [IsoRevision] = '{IsoRevision.Trim()}'
+   
+UNION ALL
 
     SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
            [Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],
@@ -864,7 +899,16 @@ ORDER BY [Drawing_Number];";
     FROM [dbo].[SPMAT_REQData]
     WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND ProjectID = {ProjectID.Trim()} 
     and [IsoRevision] = (SELECT TOP (1 ) Revision FROM [dbo].[IsoDataHistory] where [Drawing_Number]='{isosheet.Trim()}' and [ProjectID]={ProjectID.Trim()}  and [IsProcessed]=1 order by IsoUniqeRevID asc) 
+    
+    UNION ALL
 
+    SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
+           [Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],
+           [IsoRevision],[IsLocked],[Code],IsoUniqeRevID
+    FROM [dbo].[SPMAT_REQData_Mod]
+    WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND ProjectID = {ProjectID.Trim()} 
+    and [IsoRevision] = (SELECT TOP (1 ) Revision FROM [dbo].[IsoDataHistory] where [Drawing_Number]='{isosheet.Trim()}' and [ProjectID]={ProjectID.Trim()}  and [IsProcessed]=1 order by IsoUniqeRevID asc)
+   
     UNION ALL
 
     SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],
@@ -935,6 +979,9 @@ ORDER BY [Drawing_Number];";
             {
                 string query = " SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code],IsoUniqeRevID  FROM [dbo].[SPMAT_REQData] where Checked = 1 and Moved = 0 and Deleted=0 and ProjectID = " + ProjectID.Trim() +
                                " and MaterialID not in (SELECT distinct [MaterialID] FROM[dbo].[SPMAT_REQData_Temp] where Checked = 1 and Moved = 0 and Deleted=0 and ProjectID = " + ProjectID.Trim() + " ) " +
+                               " and MaterialID not in (SELECT distinct [MaterialID] FROM[dbo].[SPMAT_REQData_Mod] where Checked = 1 and Moved = 0 and Deleted=0 and ProjectID = " + ProjectID.Trim() + " ) " +
+                                " UNION ALL " +
+                               " SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code],IsoUniqeRevID FROM [dbo].[SPMAT_REQData_Mod] where Checked = 1 and Moved = 0 and ProjectID = " + ProjectID.Trim() +
                                " UNION ALL " +
                                " SELECT [MaterialID],[ProjectID],[Discipline],[Area],[Unit],[Phase],[Const_Area],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[Spec],[IsoRevisionDate],[IsoRevision],[IsLocked],[Code],IsoUniqeRevID FROM [dbo].[SPMAT_REQData_Temp] where Checked = 1 and Moved = 0 and ProjectID = " + ProjectID.Trim();
                 using (cn = new System.Data.SqlClient.SqlConnection(conMat))
@@ -1044,6 +1091,11 @@ ORDER BY [Drawing_Number];";
                 var updateTempCmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData_Temp] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
                 updateTempCmd.Parameters.AddWithValue("@MaterialID", item.MaterialID);
                 updateTempCmd.ExecuteNonQuery();
+
+                // 3. Update Checked field in Mod table
+                var updateModCmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData_Mod] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
+                updateModCmd.Parameters.AddWithValue("@MaterialID", item.MaterialID);
+                updateModCmd.ExecuteNonQuery();
 
 
             }
@@ -1431,12 +1483,32 @@ ORDER BY [Drawing_Number];";
                 cmd.ExecuteNonQuery();
             }
         }
+        public static void MarkModMaterialAsChecked(int materialID)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+                var cmd = new SqlCommand("UPDATE [dbo].[SPMAT_REQData_Mod] SET [Checked] = 1 WHERE [MaterialID] = @MaterialID", cn);
+                cmd.Parameters.AddWithValue("@MaterialID", materialID);
+                cmd.ExecuteNonQuery();
+            }
+        }
         public static void DeleteTempMaterial(int materialID)
         {
             using (var cn = new SqlConnection(conMat))
             {
                 cn.Open();
                 var cmd = new SqlCommand("Delete from [dbo].[SPMAT_REQData_Temp] WHERE [MaterialID] = @MaterialID", cn);
+                cmd.Parameters.AddWithValue("@MaterialID", materialID);
+                cmd.ExecuteNonQuery();
+            }
+        }
+        public static void DeleteModMaterial(int materialID)
+        {
+            using (var cn = new SqlConnection(conMat))
+            {
+                cn.Open();
+                var cmd = new SqlCommand("Delete from [dbo].[SPMAT_REQData_Mod] WHERE [MaterialID] = @MaterialID", cn);
                 cmd.Parameters.AddWithValue("@MaterialID", materialID);
                 cmd.ExecuteNonQuery();
             }
@@ -1474,6 +1546,13 @@ ORDER BY [Drawing_Number];";
                 cmd2.Parameters.AddWithValue("@ISO", iso);
                 cmd2.Parameters.AddWithValue("@IsoUniqeRevID", UniqueIsoRev);
                 cmd2.ExecuteNonQuery();
+
+                var cmd3 = new SqlCommand(@"
+            DELETE FROM SPMAT_REQData_Mod
+            WHERE ISO = @ISO and [IsoUniqeRevID]=@IsoUniqeRevID", cn);
+                cmd3.Parameters.AddWithValue("@ISO", iso);
+                cmd3.Parameters.AddWithValue("@IsoUniqeRevID", UniqueIsoRev);
+                cmd3.ExecuteNonQuery();
             }
         }
 
@@ -1554,7 +1633,7 @@ ORDER BY [Drawing_Number];";
                 string insertQuery = @"
 IF NOT EXISTS (
     SELECT 1 FROM [dbo].[SPMAT_IntrimData]
-    WHERE MaterialID = @MaterialID and IsDeleted=0
+  where  ProjectID=@ProjectID and IsDeleted=0 AND (MaterialID = @MaterialID or (MaterialID<0 and [ISO] = @ISO and [Ident_no]=@Ident_no)) 
 )
 BEGIN
     INSERT INTO [dbo].[SPMAT_IntrimData]
@@ -1614,6 +1693,15 @@ END";
                 using (SqlCommand updateCmd2 = new SqlCommand(updateQuery2, conn))
                 {
                     updateCmd2.ExecuteNonQuery();
+                }
+                string updateQuery3 = $@"
+            UPDATE SPMAT_REQData_Mod
+            SET Moved = 1,
+                MovedDate = GETDATE()
+            WHERE MaterialID =" + data.MaterialID.ToString();
+                using (SqlCommand updateCmd3 = new SqlCommand(updateQuery3, conn))
+                {
+                    updateCmd3.ExecuteNonQuery();
                 }
             }
         }
@@ -1737,7 +1825,7 @@ END";
                     cmd.Parameters.AddWithValue("@Code", data.Code);
                     cmd.Parameters.AddWithValue("@Checked", true);
                     cmd.Parameters.AddWithValue("@IsoUniqeRevID", data.IsoUniqeRevID);
-                    
+
 
 
 
@@ -1750,7 +1838,7 @@ END";
             UPDATE SPMAT_IntrimData
             SET MovedToFinal = 1,
                 MovedToFinalDate = GETDATE()
-            WHERE INTID =" + data.INTID.ToString() + " and IsoUniqeRevID ="+data.IsoUniqeRevID.ToString();
+            WHERE INTID =" + data.INTID.ToString() + " and IsoUniqeRevID =" + data.IsoUniqeRevID.ToString();
                 using (SqlCommand updateCmd = new SqlCommand(updateQuery, conn))
                 {
                     updateCmd.ExecuteNonQuery();
@@ -1759,10 +1847,19 @@ END";
                 // Update Temp
                 string updateTempQuery = $@"
             UPDATE SPMAT_REQData_Temp
-            SET Processed = 1 WHERE MaterialID =" + data.MaterialID.ToString() + " and  IsoUniqeRevID="+data.IsoUniqeRevID.ToString();
+            SET Processed = 1 WHERE MaterialID =" + data.MaterialID.ToString() + " and  IsoUniqeRevID=" + data.IsoUniqeRevID.ToString();
                 using (SqlCommand updatetempCmd = new SqlCommand(updateTempQuery, conn))
                 {
                     updatetempCmd.ExecuteNonQuery();
+                }
+
+                // Update Mod
+                string updateModQuery = $@"
+            UPDATE SPMAT_REQData_Mod
+            SET Processed = 1 WHERE MaterialID =" + data.MaterialID.ToString() + " and  IsoUniqeRevID=" + data.IsoUniqeRevID.ToString();
+                using (SqlCommand updatemodCmd = new SqlCommand(updateModQuery, conn))
+                {
+                    updatemodCmd.ExecuteNonQuery();
                 }
             }
 
@@ -2192,6 +2289,62 @@ END";
                 cmd.ExecuteNonQuery();
             }
         }
+        public static void InsertIntoSPMAT_REQData_Mod(SPMATDBData data)
+        {
+            using (SqlConnection conn = new SqlConnection(conMat))
+            {
+
+                string insertQuery = @"
+IF NOT EXISTS (
+    SELECT 1 FROM [dbo].[SPMAT_REQData_Mod]
+    WHERE [MaterialID] = @MaterialID AND [ProjectID] = @ProjectID AND [Discipline] = @Discipline
+      AND [Area] = @Area AND [Unit] = @Unit AND [Phase] = @Phase AND [Const_Area] = @Const_Area
+      AND [ISO] = @ISO AND [Ident_no] = @Ident_no AND [qty] = @qty AND [qty_unit] = @qty_unit
+      AND [Fabrication_Type] = @Fabrication_Type AND [Spec] = @Spec
+      AND [IsoRevisionDate] = @IsoRevisionDate AND [IsoRevision] = @IsoRevision
+      AND [IsLocked] = @IsLocked AND [Code] = @Code AND IsoUniqeRevID=@IsoUniqeRevID
+)
+BEGIN
+    INSERT INTO [dbo].[SPMAT_REQData_Mod]
+    ([MaterialID], [ProjectID], [Discipline], [Area], [Unit], [Phase], [Const_Area], [ISO],
+     [Ident_no], [qty], [qty_unit], [Fabrication_Type], [Spec], [IsoRevisionDate], [IsoRevision],
+     [IsLocked], [Code], [Checked], [Moved], [MovedDate],IsoUniqeRevID)
+    VALUES
+    (@MaterialID, @ProjectID, @Discipline, @Area, @Unit, @Phase, @Const_Area, @ISO,
+     @Ident_no, @qty, @qty_unit, @Fabrication_Type, @Spec, @IsoRevisionDate, @IsoRevision,
+     @IsLocked, @Code, @Checked, @Moved, @MovedDate,@IsoUniqeRevID)
+END";
+
+
+
+                SqlCommand cmd = new SqlCommand(insertQuery, conn);
+                cmd.Parameters.AddWithValue("@MaterialID", data.MaterialID);
+                cmd.Parameters.AddWithValue("@ProjectID", data.ProjectID);
+                cmd.Parameters.AddWithValue("@Discipline", data.Discipline ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Area", data.Area ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Unit", data.Unit ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Phase", data.Phase ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Const_Area", data.Const_Area ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@ISO", data.ISO ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Ident_no", data.Ident_no ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@qty", DecParse(data.qty).Value);
+                cmd.Parameters.AddWithValue("@qty_unit", data.qty_unit ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Fabrication_Type", data.Fabrication_Type ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Spec", data.Spec ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsoRevisionDate", data.IsoRevisionDate ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsoRevision", data.IsoRevision ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsLocked", data.Lock ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Code", data.Code ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@Checked", false);
+                cmd.Parameters.AddWithValue("@Moved", false);
+                cmd.Parameters.AddWithValue("@MovedDate", DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsoUniqeRevID", data.IsoUniqeRevID);
+
+
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
 
         public static int GetNextNegativeMaterialID(int projectID)
         {
@@ -2218,7 +2371,6 @@ END";
         internal static void RemoveFromFinal(string MTOID, string ISO,int IsoUniqeRevID)
         {
 
-
             using (SqlConnection conn = new SqlConnection(conMat))
             {
                 conn.Open();
@@ -2227,6 +2379,7 @@ END";
                 string UpdateQuery = @"
              Update [dbo].[SPMAT_REQData] set Checked = 0, Moved = 0,Deleted=0 ,Moveddate =null where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
             delete from [SPMAT_REQData_Temp] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
+            delete from [SPMAT_REQData_Mod] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
             delete from [SPMAT_IntrimData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID
             Delete from [SPMAT_MTOData] where ISO in (@ISO) and IsoUniqeRevID=@IsoUniqeRevID";
                 using (SqlCommand UpdateCmd = new SqlCommand(UpdateQuery, conn))
@@ -2623,10 +2776,9 @@ END";
             System.Data.SqlClient.SqlConnection cn = null;
             try
             {
-                string query = $@"
-    SELECT [MTOID],[MaterialID],[ProjectID],[ISO],[Ident_no],[qty],[qty_unit],[Fabrication_Type],[ReleasedMaterial]
-    FROM [dbo].[SPMAT_MTOData]
-    WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND IsDeleted=0 AND ProjectID = {projid.Trim()}";
+                string query = $@"SELECT MTOID,Discipline,Area,Unit,Phase,Const_Area,ISO,Ident_no,qty,qty_unit,Fabrication_Type,Spec,'' as Pos,IsoRevisionDate,IsoRevision,IsLocked,IsoUniqeRevID 
+                                FROM [dbo].[SPMAT_MTOData]
+                                WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND IsDeleted=0 AND ProjectID = {projid.Trim()}";
 
                 using (cn = new System.Data.SqlClient.SqlConnection(conMat))
                 {
@@ -2673,7 +2825,66 @@ END";
             }
             return isodata;
         }
+        internal static List<SPMATReExportData> GetReExportMTOData(string isosheet, string projid)
+        {
+            List<SPMATReExportData> isodata = new List<SPMATReExportData>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = $@"SELECT MTOID,Discipline,Area,Unit,Phase,Const_Area,ISO,Ident_no,qty,qty_unit,Fabrication_Type,Spec,'' as Pos,IsoRevisionDate,IsoRevision,IsLocked,IsoUniqeRevID 
+                                FROM [dbo].[SPMAT_MTOData]
+                                WHERE LTRIM(RTRIM(ISO)) = '{isosheet.Trim()}' AND IsDeleted=0 AND ProjectID = {projid.Trim()}";
 
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        SPMATReExportData spdata = new SPMATReExportData();
+                        spdata.MTOID = Convert.ToInt32(dr[0]);
+                        spdata.Discipline = dr[1].ToString();
+                        spdata.Area = dr[2].ToString();
+                        spdata.Unit = dr[3].ToString();
+                        spdata.Phase = dr[4].ToString();
+                        spdata.Const_Area = dr[5].ToString();
+                        spdata.ISO = dr[6].ToString();
+                        spdata.Ident_no = dr[7].ToString();
+                        spdata.qty = DecParse(dr[8].ToString().Trim()).Value;
+                        spdata.qty_unit = dr[9].ToString();
+                        spdata.Fabrication_Type = dr[10].ToString();
+                        spdata.Spec = dr[11].ToString();
+                        spdata.Pos = dr[12].ToString();
+                        spdata.IsoRevisionDate = dr[13].ToString();
+                        spdata.IsoRevision = dr[14].ToString();
+                        spdata.IsLocked = dr[15].ToString();
+                        spdata.IsoUniqeRevID = int.Parse(dr[16].ToString());
+                        if (!isodata.Contains(spdata))
+                        {
+                            isodata.Add(spdata);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return isodata;
+        }
         public static void UpdateReleasedMaterialStatus(int mtoid, bool released)
         {
             using (SqlConnection conn = new SqlConnection(conMat))
@@ -2686,6 +2897,67 @@ END";
                 conn.Open();
                 cmd.ExecuteNonQuery();
             }
+        }
+
+        internal static void UpdateReExportData(SPMATReExportData item,int FileID,string IsoSheet)
+        {
+            using (SqlConnection conn = new SqlConnection(conMat))
+            {
+                string query = "UPDATE SPMAT_MTOData SET Unit = @Unit, Phase=@Phase, Const_Area=@Const_Area,qty=@qty,IsoRevision=@IsoRevision,FileID=@FIleID,Imported=0,ImportedDate=null,ImportedStatus=null,IsoUniqeRevID=(Select top 1 IsoUniqeRevID from SPMAT_MTOData where Isorevision=@IsoRevision and ISO=@ISO order by IsoUniqeRevID desc)  WHERE MTOID = @MTOID";
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@MTOID", item.MTOID);
+                cmd.Parameters.AddWithValue("@Unit", item.Unit);
+                cmd.Parameters.AddWithValue("@Phase", item.Phase);
+                cmd.Parameters.AddWithValue("@Const_Area", item.Const_Area);
+                cmd.Parameters.AddWithValue("@qty", item.qty);
+                cmd.Parameters.AddWithValue("@IsoRevision", item.IsoRevision);
+                cmd.Parameters.AddWithValue("@ISO", IsoSheet);
+                cmd.Parameters.AddWithValue("@FileID",FileID);
+
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        internal static List<string> GetRevisionsByProject(string projid)
+        {
+            List<string> revisions = new List<string>();
+            System.Data.SqlClient.SqlConnection cn = null;
+            try
+            {
+                string query = "SELECT  distinct [IsoRevision]  FROM [dbo].[SPMAT_REQData] where ProjectID=" + projid.Trim();
+                using (cn = new System.Data.SqlClient.SqlConnection(conMat))
+                {
+                    System.Data.SqlClient.SqlCommand Command = new System.Data.SqlClient.SqlCommand(query, cn);
+                    Command.CommandType = System.Data.CommandType.Text;
+                    cn.Open();
+                    System.Data.SqlClient.SqlDataReader dr = Command.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var rv = dr[0].ToString();
+                        if (!revisions.Contains(rv))
+                        {
+                            revisions.Add(rv);
+                        }
+
+                    }
+                    dr.Close();
+                    cn.Close();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (cn.State == System.Data.ConnectionState.Open)
+                {
+                    cn.Close();
+                    cn = null;
+                }
+                System.GC.Collect();
+            }
+            return revisions;
         }
 
 

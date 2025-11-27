@@ -254,6 +254,7 @@
     <Content Include="images\warningimg.png" />
     <Content Include="images\wood-logo.png" />
     <Content Include="Default.aspx" />
+    <Content Include="ReExport.aspx" />
     <Content Include="ReviewIso.aspx" />
     <Content Include="MainHome.aspx" />
     <None Include="Scripts\jquery-3.6.0.intellisense.js" />
@@ -290,6 +291,13 @@
     </Compile>
     <Compile Include="Default.aspx.designer.cs">
       <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="ReExport.aspx.cs">
+      <DependentUpon>ReExport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ReExport.aspx.designer.cs">
+      <DependentUpon>ReExport.aspx</DependentUpon>
     </Compile>
     <Compile Include="ReviewIso.aspx.cs">
       <DependentUpon>ReviewIso.aspx</DependentUpon>

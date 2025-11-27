@@ -158,6 +158,7 @@ namespace Wood_MaterialControl
                 Session["GridData"] = griddata;
                 // Mark as Checked in DB
                 DataClass.MarkMaterialAsChecked(materialID);
+                DataClass.DeleteModMaterial(materialID);
                 DataClass.DeleteTempMaterial(materialID);
 
 
@@ -708,7 +709,8 @@ namespace Wood_MaterialControl
 
                         if (havediffs)
                         {
-                            DataClass.InsertIntoSPMAT_REQData_Temp(updated);
+                            //DataClass.InsertIntoSPMAT_REQData_Temp(updated);
+                            DataClass.InsertIntoSPMAT_REQData_Mod(updated);
                         }
                     }
 
@@ -732,17 +734,19 @@ namespace Wood_MaterialControl
                 lblMessage.ForeColor = System.Drawing.Color.Green;
                 lblMessage.Text = "All quantities updated successfully.";
                 var eid = 0;
+                var projid = 0;
                 List<DDLList> clientlist = new List<DDLList>();
                 try
                 {
                     eid = int.Parse(Session["EID"].ToString());
                     clientlist = (List<DDLList>)Session["ClientList"];
+                    projid = int.Parse(Session["ENGPROJECTID"].ToString());
                 }
                 catch { }
-                Session.Clear();
-                Session.Clear();
+                ClearSession();
                 Session["EID"] = eid;
                 Session["ClientList"] = clientlist;
+                Session["ENGPROJECTID"] = projid;
                 ddliso.ClearSelection();
                 ExcelGridView.DataSource = null;
                 ExcelGridView.DataBind();
@@ -773,6 +777,7 @@ namespace Wood_MaterialControl
         {
             var projid = ddlprojsel.SelectedValue;
             List<DDLList> iso = DataClass.GetProjectISO(projid, false);
+            Session["ENGPROJECTID"] = projid;
             ddliso.DataSource = iso;
             ddliso.DataTextField = "DDLListName";
             ddliso.DataValueField = "DDLList_ID";
@@ -2603,6 +2608,16 @@ namespace Wood_MaterialControl
                 var iso = Session["CurrentIso"].ToString();
                 BindExcelGridView(griddata, area, iso, bindData: true);
             }
+            if (int.Parse(Session["EID"].ToString()) == 447 || int.Parse(Session["EID"].ToString()) == 240)
+            {
+                btnReExport.Visible = true;
+
+            }
+            else
+            {
+                btnReExport.Visible = true;
+            }
+            
         }
 
         protected void grFiles_RowCommand(object sender, GridViewCommandEventArgs e)
@@ -2788,6 +2803,7 @@ namespace Wood_MaterialControl
                 if (EID == 447 || EID == 240)
                 {
                     btnvis = true;
+                  
                 }
                 else
                 {
@@ -2949,6 +2965,13 @@ namespace Wood_MaterialControl
                     Response.End();
                 }
             }
+
+        }
+
+        protected void btnReExport_Click(object sender, EventArgs e)
+        {
+            Session["ENGPROJDESC"] = ddlprojsel.SelectedItem.Text.Split('-')[0].Trim();
+            Response.Redirect("ReExport.aspx");
 
         }
     }

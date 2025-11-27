@@ -187,6 +187,47 @@ namespace Wood_MaterialControl
             container.Controls.Add(ddl);
         }
     }
+    public class RevisionsDropDownTemplate : ITemplate
+    {
+        private string _id;
+
+        public RevisionsDropDownTemplate(string id)
+        {
+            _id = id;
+        }
+
+        public void InstantiateIn(Control container)
+        {
+            DropDownList ddl = new DropDownList();
+            ddl.ID = _id;
+            ddl.AutoPostBack = true;
+            ddl.Attributes["onchange"] = $"__doPostBack('ddlConstArea', '')";
+            var revisions = (List<string>)HttpContext.Current.Items["Revisions"];
+
+            ddl.DataBinding += (sender, e) =>
+            {
+                DropDownList d = (DropDownList)sender;
+                GridViewRow row = (GridViewRow)d.NamingContainer;
+
+                if (row != null && row.DataItem != null)
+                {
+
+
+
+                    string currentValue = DataBinder.Eval(row.DataItem, "IsoRevision")?.ToString();
+                    if (!string.IsNullOrEmpty(currentValue))
+                    {
+                        ListItem item = d.Items.FindByValue(currentValue);
+                        if (item != null)
+                            d.SelectedValue = currentValue;
+                    }
+                }
+            };
+            ddl.DataSource = revisions;
+            ddl.DataBind();
+            container.Controls.Add(ddl);
+        }
+    }
 
     public class SpecDropDownTemplate : ITemplate
     {

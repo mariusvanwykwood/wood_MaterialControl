@@ -282,6 +282,9 @@
             <br />
 <asp:Button ID="btnViewExported" runat="server" Text="Load Final MTO Data" OnClick="btnViewExported_Click"/><br />
                         <asp:Panel ID="pnlFileMan" runat="server" Visible="false">
+                            <br />
+                            <asp:Button ID="btnReExport" runat="server" Text="Re-Export MTO File" OnClick="btnReExport_Click" Visible="false" />
+                            <br />
                              <asp:GridView ID="gvExported" runat="server" AutoGenerateColumns="False" CssClass="table table-bordered"
                                  OnRowCreated="gvExported_RowCreated"  >
      <Columns>
